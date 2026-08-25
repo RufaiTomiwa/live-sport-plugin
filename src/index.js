@@ -116,7 +116,8 @@ app.get('/api/manifest', (req, res) => {
 
   try {
     const scriptPath = path.join(__dirname, '..', 'scripts', 'fetch_m3u8.py');
-    const cmd = `python "${scriptPath}" "${targetUrl}" "${referer}" "${origin}"`;
+    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+    const cmd = `${pythonCmd} "${scriptPath}" "${targetUrl}" "${referer}" "${origin}"`;
     
     const out = child_process.execSync(cmd, { encoding: 'utf8', timeout: 15000 });
     
