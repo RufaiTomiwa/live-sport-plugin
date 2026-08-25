@@ -141,7 +141,8 @@ class StreamFreeProvider extends BaseProvider {
       const targetUrl = `${baseUrl}?_t=${t._t}&_e=${t._e}&_n=${t._n}`;
 
       const referer = 'https://streamfree.top/';
-      const proxyUrl = `${process.env.BASE_URL || 'http://localhost:7000'}/api/manifest?url=${encodeURIComponent(targetUrl)}&referer=${encodeURIComponent(referer)}&origin=${encodeURIComponent(new URL(referer).origin)}`;
+      const { BASE_URL } = require('../config');
+      const proxyUrl = `${BASE_URL}/api/manifest?url=${encodeURIComponent(targetUrl)}&referer=${encodeURIComponent(referer)}&origin=${encodeURIComponent(new URL(referer).origin)}`;
 
       return [new StreamEntity({
         name: 'StreamFree',

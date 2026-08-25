@@ -141,8 +141,9 @@ class EmbedIndiaProvider extends BaseProvider {
       const result = extract(html);
       if (result) {
         console.log(`[EmbedIndia] Extracted M3U8: ${result.m3u8}`);
+        const { BASE_URL } = require('../config');
         
-        const proxyUrl = `${process.env.BASE_URL || 'http://localhost:7000'}/api/manifest?url=${encodeURIComponent(result.m3u8)}&referer=${encodeURIComponent(result.referer)}&origin=${encodeURIComponent(new URL(result.referer).origin)}`;
+        const proxyUrl = `${BASE_URL}/api/manifest?url=${encodeURIComponent(result.m3u8)}&referer=${encodeURIComponent(result.referer)}&origin=${encodeURIComponent(new URL(result.referer).origin)}`;
 
         return new StreamEntity({
           name: 'EmbedIndia',

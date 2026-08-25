@@ -60,7 +60,8 @@ class EmbedStProvider extends BaseProvider {
 
           if (m3u8Url) {
             console.log(`[${this.name}] Natively decrypted M3U8 for ${matchTitle}: ${m3u8Url}`);
-            const proxyUrl = `${process.env.BASE_URL || 'http://localhost:7000'}/api/manifest?url=${encodeURIComponent(m3u8Url)}&referer=${encodeURIComponent(referer)}&origin=${encodeURIComponent(new URL(referer).origin)}`;
+            const { BASE_URL } = require('../config');
+            const proxyUrl = `${BASE_URL}/api/manifest?url=${encodeURIComponent(m3u8Url)}&referer=${encodeURIComponent(referer)}&origin=${encodeURIComponent(new URL(referer).origin)}`;
             streams.push(new StreamEntity({
               name: 'EmbedSt',
               title: `[Direct] ${matchTitle}`,
