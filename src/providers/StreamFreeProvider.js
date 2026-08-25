@@ -12,7 +12,7 @@ class StreamFreeProvider extends BaseProvider {
       this.name + '_fetchMain',
       async () => {
         const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36' };
-        const res = await this.proxyFetch(this.apiUrl, { headers, signal: AbortSignal.timeout(7000) });
+        const res = await fetch(this.apiUrl, { headers, signal: AbortSignal.timeout(7000) });
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         return await res.json();
       }
@@ -21,7 +21,7 @@ class StreamFreeProvider extends BaseProvider {
       this.name + '_fetchEmbed',
       async (url) => {
         const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36' };
-        const res = await this.proxyFetch(url, { headers, signal: AbortSignal.timeout(10000) });
+        const res = await fetch(url, { headers, signal: AbortSignal.timeout(10000) });
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         return await res.text();
       }
@@ -30,7 +30,7 @@ class StreamFreeProvider extends BaseProvider {
       this.name + '_fetchStreamKey',
       async (url) => {
         const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36' };
-        const res = await this.proxyFetch(url, { headers, signal: AbortSignal.timeout(10000) });
+        const res = await fetch(url, { headers, signal: AbortSignal.timeout(10000) });
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         return await res.json();
       }
@@ -86,7 +86,7 @@ class StreamFreeProvider extends BaseProvider {
       const statusUrl = `https://streamfree.top/api/stream-status/${sourceId}`;
       let availableQualities = {};
       try {
-        const statusRes = await this.proxyFetch(statusUrl, {
+        const statusRes = await fetch(statusUrl, {
            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36' }
         });
         if (statusRes.ok) {
