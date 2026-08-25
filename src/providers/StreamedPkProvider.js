@@ -84,25 +84,31 @@ class StreamedPkProvider extends BaseProvider {
 
       const streamList = await this.fetchStreams.fire(streamSource, streamId);
       if (Array.isArray(streamList)) {
-        for (const streamItem of streamList) {
-          if (!streamItem.embedUrl) continue;
+        const resolvePromises = streamList.map(async (streamItem) => {
+          if (!streamItem.embedUrl) return [];
           
           const label = streamItem.language ? `${matchTitle} (${streamItem.language})` : `${matchTitle} Stream ${streamItem.streamNo || 1}`;
           
           if (this.embedStProvider) {
-            const resolved = await this.embedStProvider.resolveStream(
+            return await this.embedStProvider.resolveStream(
               streamItem.embedUrl,
               matchCategory,
               label,
               { embedUrl: streamItem.embedUrl }
             );
-            streams.push(...resolved);
           } else {
-            streams.push(new StreamEntity({
+            return [new StreamEntity({
               name: 'StreamedPk',
               title: `${label} (Web Player)`,
               externalUrl: `/watch?url=${encodeURIComponent(streamItem.embedUrl)}&title=${encodeURIComponent(matchTitle || 'Live Event')}`
-            }));
+            })];
+          }
+        });
+
+        const results = await Promise.allSettled(resolvePromises);
+        for (const result of results) {
+          if (result.status === 'fulfilled' && Array.isArray(result.value)) {
+            streams.push(...result.value);
           }
         }
       }
