@@ -84,31 +84,38 @@ class StreamedPkProvider extends BaseProvider {
 
       const streamList = await this.fetchStreams.fire(streamSource, streamId);
       if (Array.isArray(streamList)) {
-        const resolvePromises = streamList.map(async (streamItem) => {
-          if (!streamItem.embedUrl) return [];
+        // Chunk the stream list to prevent memory spiking on Render (512MB RAM limit).
+        // Executing max 3 WASM child processes at a time keeps RAM usage very safe.
+        const CHUNK_SIZE = 3;
+        for (let i = 0; i < streamList.length; i += CHUNK_SIZE) {
+          const chunk = streamList.slice(i, i + CHUNK_SIZE);
           
-          const label = streamItem.language ? `${matchTitle} (${streamItem.language})` : `${matchTitle} Stream ${streamItem.streamNo || 1}`;
-          
-          if (this.embedStProvider) {
-            return await this.embedStProvider.resolveStream(
-              streamItem.embedUrl,
-              matchCategory,
-              label,
-              { embedUrl: streamItem.embedUrl }
-            );
-          } else {
-            return [new StreamEntity({
-              name: 'StreamedPk',
-              title: `${label} (Web Player)`,
-              externalUrl: `/watch?url=${encodeURIComponent(streamItem.embedUrl)}&title=${encodeURIComponent(matchTitle || 'Live Event')}`
-            })];
-          }
-        });
+          const resolvePromises = chunk.map(async (streamItem) => {
+            if (!streamItem.embedUrl) return [];
+            
+            const label = streamItem.language ? `${matchTitle} (${streamItem.language})` : `${matchTitle} Stream ${streamItem.streamNo || 1}`;
+            
+            if (this.embedStProvider) {
+              return await this.embedStProvider.resolveStream(
+                streamItem.embedUrl,
+                matchCategory,
+                label,
+                { embedUrl: streamItem.embedUrl }
+              );
+            } else {
+              return [new StreamEntity({
+                name: 'StreamedPk',
+                title: `${label} (Web Player)`,
+                externalUrl: `/watch?url=${encodeURIComponent(streamItem.embedUrl)}&title=${encodeURIComponent(matchTitle || 'Live Event')}`
+              })];
+            }
+          });
 
-        const results = await Promise.allSettled(resolvePromises);
-        for (const result of results) {
-          if (result.status === 'fulfilled' && Array.isArray(result.value)) {
-            streams.push(...result.value);
+          const results = await Promise.allSettled(resolvePromises);
+          for (const result of results) {
+            if (result.status === 'fulfilled' && Array.isArray(result.value)) {
+              streams.push(...result.value);
+            }
           }
         }
       }
