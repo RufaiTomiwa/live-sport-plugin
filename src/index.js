@@ -25,17 +25,7 @@ const { handleStream } = require('./streams');
 const { PORT, BASE_URL } = require('./config');
 const container = require('./container');
 
-// ─── Global Crash Protections (Prevents Unhandled Playwright Errors from killing Nuvio) ──
-process.on('uncaughtException', (err) => {
-  console.error('[FATAL] Uncaught Exception:', err.message);
-  // Do not exit the process, let it recover
-});
 
-process.on('unhandledRejection', (reason, promise) => {
-  const msg = reason ? (reason.message || reason) : 'Unknown reason';
-  console.error('[FATAL] Unhandled Rejection:', msg);
-  // Do not exit the process, let it recover
-});
 
 // Removed global User-Agent fix because it causes ECONNRESET on Streamed.pk
 
@@ -189,61 +179,6 @@ app.get('/api/proxy-embed', async (req, res) => {
   }
 });
 
-// Mount the Playwright HLS Proxy for streams that block Node.js and Native clients
-app.get('/api/playwright-m3u8', async (req, res) => {
-  const targetUrl = req.query.url;
-  const referer = req.query.referer || '';
-  if (!targetUrl) return res.status(400).send('Missing url');
-
-  try {
-    const sniffer = container.resolve('browserSniffer');
-    let m3u8Text = await sniffer.fetchThroughBrowser(targetUrl, referer, false);
-
-    const proto = req.headers['x-forwarded-proto'] || req.protocol;
-    const host = req.headers['x-forwarded-host'] || req.headers.host;
-    const currentBaseUrl = host ? `${proto}://${host}` : `http://127.0.0.1:7000`;
-
-    // Rewrite internal paths to use playwright-ts proxy
-    const lines = m3u8Text.split('\n');
-    const rewritten = lines.map(line => {
-      if (line.trim().length === 0 || line.startsWith('#')) return line;
-      try {
-        const absoluteUrl = new URL(line.trim(), targetUrl).href;
-        if (absoluteUrl.endsWith('.m3u8')) {
-          return `${currentBaseUrl}/api/playwright-m3u8?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(referer)}`;
-        }
-        return `${currentBaseUrl}/api/playwright-ts?url=${Buffer.from(absoluteUrl).toString('base64')}&ref=${Buffer.from(referer).toString('base64')}`;
-      } catch (e) {
-        return line;
-      }
-    });
-
-    res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.send(rewritten.join('\n'));
-  } catch (err) {
-    console.error(`[playwright-m3u8] Proxy failed for ${targetUrl}:`, err.message);
-    res.status(502).send('Proxy failed');
-  }
-});
-
-app.get('/api/playwright-ts', async (req, res) => {
-  try {
-    const tsUrl = Buffer.from(req.query.url, 'base64').toString('utf8');
-    const referer = req.query.ref ? Buffer.from(req.query.ref, 'base64').toString('utf8') : '';
-    if (!tsUrl) return res.status(400).send('Missing url');
-
-    const sniffer = container.resolve('browserSniffer');
-    res.setHeader('Content-Type', 'video/mp2t');
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    
-    // Stream chunks directly from Playwright to the Express response!
-    await sniffer.streamThroughBrowser(tsUrl, referer, res);
-  } catch (err) {
-    console.error(`[playwright-ts] Proxy failed for ${req.query.url}:`, err.message);
-    if (!res.headersSent) res.status(502).send('Proxy failed');
-  }
-});
 
 // Mount the HLS Video Proxy (routes to the internal resolver on port RESOLVER_PORT)
 app.use('/api', createProxyMiddleware({

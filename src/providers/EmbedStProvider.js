@@ -7,7 +7,6 @@ class EmbedStProvider extends BaseProvider {
   constructor(opts) {
     super(opts);
     this.name = 'EmbedSt';
-    this.browserSnifferService = opts.browserSnifferService;
   }
 
   async getMatches() {
@@ -47,8 +46,8 @@ class EmbedStProvider extends BaseProvider {
           console.log(`[${this.name}] Decrypting native WASM for ${user}/${event}/${id}...`);
 
           const m3u8Url = await new Promise((resolve) => {
-            // Using process.cwd() ensures the path works both in dev (src/) and after ncc build (dist/)
-            const scriptPath = path.join(process.cwd(), 'scripts', 'run_wasm.js');
+            // Using __dirname ensures it works when bundled by ncc into dist/
+            const scriptPath = path.join(__dirname, 'run_wasm_native.js');
             execFile('node', [scriptPath, user, event, id, embedUrl], { timeout: 15000 }, (error, stdout) => {
               if (error) {
                 console.error(`[${this.name}] Native WASM execution failed:`, error.message);
@@ -61,13 +60,21 @@ class EmbedStProvider extends BaseProvider {
 
           if (m3u8Url) {
             console.log(`[${this.name}] Natively decrypted M3U8 for ${matchTitle}: ${m3u8Url}`);
-            const proxyUrl = this.getStreamProxyUrl(m3u8Url, referer, new URL(referer).origin);
             streams.push(new StreamEntity({
               name: 'EmbedSt',
               title: `[Direct] ${matchTitle}`,
-              url: proxyUrl,
-              behaviorHints: { notWebReady: true },
-              resolution: 'HD',
+              url: m3u8Url,
+              behaviorHints: { 
+                notWebReady: true,
+                proxyHeaders: {
+                  request: {
+                    "Origin": new URL(referer).origin,
+                    "Referer": referer,
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36"
+                  }
+                }
+              },
+              resolution: 'HD'
             }));
           } else {
             console.warn(`[${this.name}] Native decryption failed to extract M3U8 for ${embedUrl}`);
@@ -78,30 +85,7 @@ class EmbedStProvider extends BaseProvider {
       }
     }
 
-    // ─── Tier 2: Playwright Sniffer ─────────────────────────────────────────
-    if (streams.length === 0) {
-      console.log(`[${this.name}] 🟡 Native decryption failed for ${embedUrl}, falling back to Playwright Sniffer...`);
-      try {
-        const sniffer = this.browserSnifferService;
-        if (!sniffer) throw new Error('BrowserSnifferService not injected');
-        const sniffedUrl = await sniffer.sniff(embedUrl, { referer });
-        if (sniffedUrl) {
-          console.log(`[${this.name}] ⚡ Sniffer extraction succeeded for: ${matchTitle}`);
-          const proxyUrl = `/api/playwright-m3u8?url=${encodeURIComponent(sniffedUrl)}&referer=${encodeURIComponent(referer)}`;
-          streams.push(new StreamEntity({
-            name: 'EmbedSt',
-            title: `[Direct] ${matchTitle}`,
-            url: proxyUrl,
-            behaviorHints: {
-              notWebReady: true
-            },
-            resolution: 'HD',
-          }));
-        }
-      } catch (err) {
-        console.warn(`[${this.name}] Playwright sniffer failed for ${embedUrl}:`, err.message);
-      }
-    }
+
 
     // ─── Tier 3: Raw embed fallback — always appended ────────────────────────
     streams.push(new StreamEntity({

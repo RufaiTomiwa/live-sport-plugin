@@ -73,26 +73,7 @@ class StreamFreeProvider extends BaseProvider {
     try {
       const embedUrl = `https://streamfree.top/embed/${matchCategory}/${sourceId}`;
       
-      const { getCfProxyUrl } = require('./BaseProvider');
-      const cfProxyUrl = getCfProxyUrl();
-      if (cfProxyUrl) {
-          console.log(`[Proxy] Using CF edge-scraper for StreamFree match: ${sourceId}`);
-          const proxyUrl = new URL(cfProxyUrl);
-          proxyUrl.searchParams.set('action', 'streamfree');
-          proxyUrl.searchParams.set('embedUrl', embedUrl);
-          proxyUrl.searchParams.set('streamId', sourceId);
-          proxyUrl.searchParams.set('referer', 'https://streamfree.top/');
-          proxyUrl.searchParams.set('origin', 'https://streamfree.top');
-          
-          return [new StreamEntity({
-            name: 'StreamFree',
-            title: `StreamFree (Auto)`,
-            url: proxyUrl.toString() + '&ext=.m3u8',
-            resolution: 'HD'
-          })];
-      }
-
-      // FALLBACK: If no CF Proxy is configured, scrape internally (uses Render bandwidth)
+      // Scrape internally
       const html = await this.embedFetcher.fire(embedUrl);
       if (!html) return [];
 
@@ -159,13 +140,23 @@ class StreamFreeProvider extends BaseProvider {
       
       const targetUrl = `${baseUrl}?_t=${t._t}&_e=${t._e}&_n=${t._n}`;
 
-      console.log(`[Proxy] Using internal fallback for StreamFree match: ${sourceId}`);
-      return [new StreamEntity({
-        name: 'StreamFree',
-        title: `StreamFree (${bestQuality})`,
-        url: this.getStreamProxyUrl(targetUrl, 'https://streamfree.top/', 'https://streamfree.top'),
-        resolution: bestQuality
-      })];
+        console.log(`[Proxy] Using internal fallback for StreamFree match: ${sourceId}`);
+        return [new StreamEntity({
+          name: 'StreamFree',
+          title: `StreamFree (${bestQuality})`,
+          url: targetUrl,
+          behaviorHints: {
+            notWebReady: true,
+            proxyHeaders: {
+              request: {
+                "Origin": "https://streamfree.top",
+                "Referer": "https://streamfree.top/",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36"
+              }
+            }
+          },
+          resolution: bestQuality
+        })];
     } catch (error) {
       console.error(`[${this.name}] resolveStream failed for ${sourceId}:`, error.message);
       return [];

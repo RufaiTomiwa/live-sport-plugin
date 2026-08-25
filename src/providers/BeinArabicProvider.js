@@ -6,7 +6,6 @@ class BeinArabicProvider extends BaseProvider {
   constructor(opts) {
     super(opts);
     this.name = 'BeinArabic';
-    this.browserSnifferService = opts.browserSnifferService;
     
     // Arabic beIN Sports Channels Static List with Yalla Shoot URLs for Sniffing
     this.channels = [
@@ -53,36 +52,7 @@ class BeinArabicProvider extends BaseProvider {
 
     const targetUrl = channel.url;
 
-    // Direct stream extraction via Playwright Sniffer
-    if (this.browserSnifferService) {
-      console.log(`[${this.name}] 🟡 Sniffing direct stream for ${matchTitle} at ${targetUrl}...`);
-      try {
-        const sniffedUrl = await this.browserSnifferService.sniff(targetUrl, { referer: 'https://v2.yalla-shoot.tv/' });
-        if (sniffedUrl) {
-          console.log(`[${this.name}] ⚡ Sniffer extraction succeeded for: ${matchTitle}`);
-          
-          // Direct M3U8 Stream
-          streams.push(new StreamEntity({
-            name: 'Bein Arabic (Direct)',
-            title: `[Direct M3U8] ${matchTitle}`,
-            url: sniffedUrl,
-            behaviorHints: {
-              notWebReady: true,
-              proxyHeaders: {
-                request: {
-                  "Origin": "https://v2.yalla-shoot.tv",
-                  "Referer": "https://v2.yalla-shoot.tv/",
-                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36"
-                }
-              }
-            },
-            resolution: 'HD'
-          }));
-        }
-      } catch (err) {
-        console.warn(`[${this.name}] Playwright sniffer failed for ${targetUrl}:`, err.message);
-      }
-    }
+
 
     // Fallback to direct stream format if sniffer fails
     streams.push(new StreamEntity({

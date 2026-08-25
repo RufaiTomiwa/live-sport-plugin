@@ -19,8 +19,8 @@ class CronService {
   start() {
     console.log('[CronService] Starting background jobs...');
     
-    // Fetch and cache matches every 5 minutes
-    cron.schedule('*/5 * * * *', async () => {
+    // Fetch and cache matches every 4 hours
+    cron.schedule('0 */4 * * *', async () => {
       console.log('[CronService] Running match sync job...');
       try {
         await this.runSync();

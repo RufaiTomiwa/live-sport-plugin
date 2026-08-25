@@ -9,7 +9,6 @@ class TimStreamsProvider extends BaseProvider {
     super(opts);
     this.name = 'TimStreams';
     this.apiUrl = 'https://timstreams.st/api/live-upcoming';
-    this.browserSnifferService = opts.browserSnifferService;
     
     this.fetchData = this.circuitBreaker.wrap(`${this.name}_fetch`, async () => {
       const res = await this.proxyFetch(this.apiUrl, { signal: AbortSignal.timeout(15000) });
@@ -86,13 +85,32 @@ class TimStreamsProvider extends BaseProvider {
    * Decode a XOR-obfuscated script block from TimStreams embed pages.
    */
   decodeObfuscatedScript(html) {
-    const match = html.match(/var\s+(\w+)\s*=\s*\[([\d,]+)\]\s*,\s*(\w+)\s*=\s*(\d+)\s*,\s*(\w+)\s*=\s*(\d+)/);
-    if (!match) return null;
+    // 1. Find the obfuscated array
+    const arrMatch = html.match(/var\s+\w+\s*=\s*\[([\d,]+)\]/);
+    if (!arrMatch) return null;
+    const arr = arrMatch[1].split(',').map(Number);
+    
+    // 2. Find the character decoding loop formula to get the variable names
+    // Typically: String.fromCharCode(((_so7[_ix3]^_bw9)-_jr2+256)%256)
+    const loopMatch = html.match(/String\.fromCharCode\(\(\([\w\[\]]+\s*\^\s*(\w+)\)\s*-\s*(\w+)\s*\+\s*256\)\s*%\s*256\)/);
+    if (!loopMatch) return null;
+    
+    const xorVarName = loopMatch[1];
+    const subVarName = loopMatch[2];
+    
+    // 3. Find the integer values assigned to those variables
+    const xorRegex = new RegExp(xorVarName + '\\s*=\\s*(\\d+)');
+    const subRegex = new RegExp(subVarName + '\\s*=\\s*(\\d+)');
+    
+    const xorMatch = html.match(xorRegex);
+    const subMatch = html.match(subRegex);
+    
+    if (!xorMatch || !subMatch) return null;
+    
+    const xor = parseInt(xorMatch[1]);
+    const sub = parseInt(subMatch[1]);
 
-    const arr = match[2].split(',').map(Number);
-    const xor = parseInt(match[4]);
-    const sub = parseInt(match[6]);
-
+    // 4. Decrypt natively in Node.js!
     let decoded = '';
     for (let i = 0; i < arr.length; i++) {
       decoded += String.fromCharCode(((arr[i] ^ xor) - sub + 256) % 256);
@@ -172,34 +190,8 @@ class TimStreamsProvider extends BaseProvider {
         if (nativeResult) {
             m3u8 = nativeResult.m3u8;
             referer = nativeResult.referer;
-        } else {
-            // 2. Fallback to Sniffer
-            console.log(`[${this.name}] 🟡 Native decryption failed for ${embed.url}, falling back to Playwright Sniffer...`);
-            if (this.browserSnifferService) {
-                try {
-                    const sniffedUrl = await this.browserSnifferService.sniff(embed.url, { referer: 'https://timstreams.st/' });
-                    if (sniffedUrl) {
-                        m3u8 = sniffedUrl;
-                    }
-                } catch (err) {
-                    console.warn(`[${this.name}] Sniffer failed: ${err.message}`);
-                }
-            }
         }
-
         if (m3u8) {
-          const proxyStreamUrl = this.getStreamProxyUrl(m3u8, referer, referer);
-
-          // Fast Edge Proxy Stream (CF Worker pool - passes Referer, zero Render bandwidth, works in all Nuvio apps)
-          if (proxyStreamUrl && proxyStreamUrl.startsWith('http')) {
-            streams.push(new StreamEntity({
-              name: `TimStreams`,
-              title: `[HD] ${embed.name || 'Stream'}`,
-              url: proxyStreamUrl,
-              resolution: 'HD'
-            }));
-          }
-
           // Direct Stream (Native player header fallback)
           streams.push(new StreamEntity({
             name: `TimStreams`,

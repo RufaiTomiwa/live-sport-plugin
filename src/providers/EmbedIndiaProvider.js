@@ -48,7 +48,6 @@ class EmbedIndiaProvider extends BaseProvider {
   constructor(opts) {
     super(opts);
     this.name = 'EmbedIndia';
-    this.browserSnifferService = opts.browserSnifferService;
 
     /**
      * failureCache — in-memory map of embed domain → timestamp of last failure.
@@ -71,8 +70,16 @@ class EmbedIndiaProvider extends BaseProvider {
           'Referer': referer || 'https://embedindia.st/',
           'Connection': 'keep-alive',
         };
-        // Use direct fetch() — NOT proxyFetch() — to preserve CF Worker quota (D-04)
-        const res = await fetch(url, { headers, signal: AbortSignal.timeout(10000) });
+        
+        const fetchOpts = { headers, signal: AbortSignal.timeout(10000) };
+
+        // Route through residential proxy if available (bypasses Cloudflare block natively)
+        if (process.env.RESIDENTIAL_PROXY) {
+          const { ProxyAgent } = require('undici');
+          fetchOpts.dispatcher = new ProxyAgent(process.env.RESIDENTIAL_PROXY);
+        }
+
+        const res = await fetch(url, fetchOpts);
         if (!res.ok) throw new Error(`HTTP ${res.status} from ${url}`);
         return res.text();
       }
@@ -94,6 +101,9 @@ class EmbedIndiaProvider extends BaseProvider {
    * @returns {boolean}
    */
   _shouldSkipServerSide(embedUrl) {
+    // If we have a residential proxy, we never skip (it bypasses CF)
+    if (process.env.RESIDENTIAL_PROXY) return false;
+
     try {
       const { hostname } = new URL(embedUrl);
       // Skip if known CF-protected domain (D-03 / S-03)
@@ -131,15 +141,23 @@ class EmbedIndiaProvider extends BaseProvider {
       const result = extract(html);
       if (result) {
         console.log(`[${this.name}] Server-side extraction succeeded via ${result.pattern} for: ${matchTitle}`);
-        const proxyUrl = this.getStreamProxyUrl(result.url, referer || embedUrl, referer ? new URL(referer).origin : new URL(embedUrl).origin);
+          
+        const originUrl = referer ? new URL(referer).origin : new URL(embedUrl).origin;
         return new StreamEntity({
           name: 'EmbedIndia',
           title: `[Direct] ${matchTitle}`,
-          url: proxyUrl,
+          url: result.url,
           behaviorHints: {
-            notWebReady: true
+            notWebReady: true,
+            proxyHeaders: {
+              request: {
+                "Origin": originUrl,
+                "Referer": referer || embedUrl,
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36"
+              }
+            }
           },
-          resolution: 'HD',
+          resolution: 'HD'
         });
       }
     } catch (err) {
@@ -185,31 +203,6 @@ class EmbedIndiaProvider extends BaseProvider {
       } else {
         // Mark failure so we don't keep hammering a CF-protected domain (D-08)
         this._markFailure(embedUrl);
-      }
-    }
-
-    // ─── Tier 1.5: Headful Playwright Sniffer Fallback ──────────────────────
-    if (streams.length === 0) {
-      console.log(`[${this.name}] 🟡 Server-side extraction skipped/failed for ${embedUrl}, falling back to Playwright Sniffer...`);
-      try {
-        const sniffer = this.browserSnifferService;
-        if (!sniffer) throw new Error('BrowserSnifferService not injected');
-        const sniffedUrl = await sniffer.sniff(embedUrl, { referer });
-        if (sniffedUrl) {
-          console.log(`[${this.name}] ⚡ Sniffer extraction succeeded for: ${matchTitle}`);
-          const proxyUrl = `/api/playwright-m3u8?url=${encodeURIComponent(sniffedUrl)}&referer=${encodeURIComponent(referer || embedUrl)}`;
-          streams.push(new StreamEntity({
-            name: 'EmbedIndia',
-            title: `[Direct] ${matchTitle}`,
-            url: proxyUrl,
-            behaviorHints: {
-              notWebReady: true
-            },
-            resolution: 'HD',
-          }));
-        }
-      } catch (err) {
-        console.warn(`[${this.name}] Playwright sniffer failed for ${embedUrl}:`, err.message);
       }
     }
 
