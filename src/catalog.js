@@ -77,25 +77,25 @@ function mapMatchToMetaPreview(match, config = {}) {
   
   const fallbackPoster = `https://placehold.co/800x450/111111/${color}.png?text=${encodeURIComponent(posterText)}&font=Montserrat`;
   
-  let poster = fallbackPoster;
-  let logo = match.team1 && match.team1.logo ? match.team1.logo : null;
-
   // Helper to construct a standardized proxy URL for all images
-  // Uses JPEG with 80% quality to ensure sizes stay well under Stremio's 100kb limit
   const getProxyUrl = (url, isLogo) => {
+    if (!url) return null;
     const fit = isLogo ? 'contain' : 'cover';
     const bg = isLogo ? '&bg=1a1a1a' : '';
     return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=800&h=450&fit=${fit}${bg}&output=jpeg&q=80`;
   };
 
-  // Enhance channel posters with logos
+  let poster = fallbackPoster;
+  let logo = match.logo || (match.team1 && match.team1.logo ? match.team1.logo : null);
+
   const channelLogo = getChannelLogo(match.title);
-  if (channelLogo) {
+  if (match.poster) {
+    poster = getProxyUrl(match.poster, false);
+  } else if (channelLogo) {
     poster = getProxyUrl(channelLogo, true);
     logo = channelLogo;
   } else if (match.thumbnail_url) {
     const tUrl = match.thumbnail_url.startsWith('http') ? match.thumbnail_url : `https://streamfree.top${match.thumbnail_url}`;
-    // Determine if the URL is likely a logo that needs containment and a background
     const isLogo = match.category === 'networks' || tUrl.toLowerCase().includes('logo') || tUrl.toLowerCase().includes('icon');
     
     poster = getProxyUrl(tUrl, isLogo);
@@ -105,7 +105,11 @@ function mapMatchToMetaPreview(match, config = {}) {
     }
   }
 
-  let background = poster;
+  if (logo && !logo.includes('wsrv.nl')) {
+    logo = getProxyUrl(logo, true);
+  }
+  
+  let background = match.background ? getProxyUrl(match.background, false) : poster;
 
   let timeString = '24/7 Stream';
   let relativeTimeStr = '';

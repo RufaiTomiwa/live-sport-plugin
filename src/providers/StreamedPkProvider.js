@@ -66,6 +66,10 @@ class StreamedPkProvider extends BaseProvider {
             date: String(item.date || Date.now()),
             popular: item.popular ? '1' : '0',
             poster: item.poster ? (item.poster.startsWith('http') ? item.poster : `https://streamed.pk${item.poster}`) : '',
+            logo: item.teams && item.teams.home && item.teams.home.badge ? `https://streamed.pk/api/images/proxy/${item.teams.home.badge}` : '',
+            background: item.poster ? (item.poster.startsWith('http') ? item.poster : `https://streamed.pk${item.poster}`) : '',
+            team1: item.teams && item.teams.home ? { name: item.teams.home.name } : null,
+            team2: item.teams && item.teams.away ? { name: item.teams.away.name } : null,
             sources: sources
           }));
         }

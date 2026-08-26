@@ -1,0 +1,69 @@
+const { chromium } = require('playwright-extra');
+const stealth = require('puppeteer-extra-plugin-stealth')();
+chromium.use(stealth);
+const fs = require('fs');
+
+(async () => {
+  const browser = await chromium.launch({ headless: false }); 
+  const page = await browser.newPage();
+  
+  page.on('console', msg => console.log('BROWSER:', msg.text()));
+
+  await page.route('**/*', route => {
+    const url = route.request().url();
+    if (url.includes('google') || url.includes('doubleclick') || url.includes('analytics')) {
+      route.abort();
+    } else {
+      route.continue();
+    }
+  });
+
+  await page.addInitScript(() => {
+    const origInstantiateStreaming = WebAssembly.instantiateStreaming;
+    WebAssembly.instantiateStreaming = async function(response, imports) {
+        console.log("WASM INSTANTIATE STREAMING CALLED!", response.url);
+        
+        // Wait a bit to ensure it is fully running before we poll memory
+        const result = await origInstantiateStreaming(response, imports);
+        window.wasmInstance = result.instance;
+        
+        setInterval(() => {
+            if (window.wasmInstance && window.wasmInstance.exports && window.wasmInstance.exports.memory) {
+                const mem = new Uint8Array(window.wasmInstance.exports.memory.buffer);
+                const str = new TextDecoder().decode(mem);
+                if (str.includes('m3u8')) {
+                    const idx = str.indexOf('m3u8');
+                    // Find the start of the https://
+                    const startIdx = str.lastIndexOf('https://', idx);
+                    if (startIdx !== -1) {
+                        const endIdx = str.indexOf('"', idx);
+                        const endIdx2 = str.indexOf('\n', idx);
+                        const endIdx3 = str.indexOf('\0', idx);
+                        
+                        let minEnd = Math.min(endIdx > -1 ? endIdx : Infinity, 
+                                            endIdx2 > -1 ? endIdx2 : Infinity, 
+                                            endIdx3 > -1 ? endIdx3 : Infinity);
+                                            
+                        if (minEnd !== Infinity) {
+                            window.decryptedM3u8 = str.substring(startIdx, minEnd);
+                            console.log("FOUND IT POLL:", window.decryptedM3u8);
+                        }
+                    }
+                }
+            }
+        }, 1000);
+        
+        return result;
+    };
+  });
+
+  console.log("Going to embed.st...");
+  await page.goto('https://embed.st/embed/admin/admin-tennis-channel/1', { referer: 'https://streamed.pk/' });
+  
+  await page.waitForTimeout(20000); 
+  
+  const m3u8 = await page.evaluate(() => window.decryptedM3u8);
+  console.log("Decrypted M3U8:", m3u8);
+  
+  await browser.close();
+})();
