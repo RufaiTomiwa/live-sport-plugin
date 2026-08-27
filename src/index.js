@@ -114,7 +114,8 @@ app.get('/api/manifest', async (req, res) => {
   
   if (!targetUrl) return res.status(400).send('Missing url');
 
-  let out = '';
+  try {
+    let out = '';
   try {
     const scriptPath = path.join(__dirname, '..', 'scripts', 'fetch_m3u8.py');
     const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
