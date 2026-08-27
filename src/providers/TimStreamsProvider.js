@@ -182,7 +182,7 @@ class TimStreamsProvider extends BaseProvider {
       }
 
       for (const embed of embedUrls) {
-        let m3u8 = null;
+        let m3u8Url = null;
         let referer = new URL(embed.url).origin;
         
         // 1. Try native decryption

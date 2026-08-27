@@ -136,12 +136,22 @@ app.get('/api/manifest', (req, res) => {
       
       // It's a URL
       let absoluteUrl = l;
-      if (!l.startsWith('http')) {
-        const urlObj = new URL(targetUrl);
-        const basePath = urlObj.pathname.substring(0, urlObj.pathname.lastIndexOf('/') + 1);
-        const baseUrl = urlObj.origin + basePath;
-        // IMPORTANT: Append the query string (urlObj.search) so tokens are passed to chunks
-        absoluteUrl = baseUrl + l + urlObj.search;
+      try {
+        // Native URL resolution handles all edge cases perfectly:
+        // root-relative (/), parent-relative (../), protocol-relative (//), and absolute.
+        const chunkUrl = new URL(l, targetUrl);
+        const manifestUrl = new URL(targetUrl);
+        
+        // IMPORTANT: Merge manifest query params (auth tokens) into chunk URL
+        manifestUrl.searchParams.forEach((val, key) => {
+          if (!chunkUrl.searchParams.has(key)) {
+            chunkUrl.searchParams.set(key, val);
+          }
+        });
+        absoluteUrl = chunkUrl.toString();
+      } catch (err) {
+        // Fallback to the original line if URL parsing fails (shouldn't happen for valid manifests)
+        absoluteUrl = l;
       }
       
       // If it's a sub-playlist, route it back through our proxy!
