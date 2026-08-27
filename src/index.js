@@ -107,26 +107,40 @@ app.get('/api/matches', (req, res) => {
   res.json(matches);
 });
 
-app.get('/api/manifest', (req, res) => {
+app.get('/api/manifest', async (req, res) => {
   const targetUrl = req.query.url;
   const referer = req.query.referer || 'https://embed.st/';
   const origin = req.query.origin || 'https://embed.st';
   
   if (!targetUrl) return res.status(400).send('Missing url');
 
+  let out = '';
   try {
     const scriptPath = path.join(__dirname, '..', 'scripts', 'fetch_m3u8.py');
     const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
     const cmd = `${pythonCmd} "${scriptPath}" "${targetUrl}" "${referer}" "${origin}"`;
     
-    const out = child_process.execSync(cmd, { encoding: 'utf8', timeout: 15000 });
+    out = child_process.execSync(cmd, { encoding: 'utf8', timeout: 15000 });
     
-    if (out.startsWith('MISSING_CURL_CFFI')) {
-       return res.status(500).send('curl_cffi not installed on server');
+    if (out.startsWith('MISSING_CURL_CFFI') || out.startsWith('ERROR_')) {
+       throw new Error(out);
     }
-    if (out.startsWith('ERROR_')) {
-       return res.status(502).send('Upstream error: ' + out);
+  } catch (e) {
+    console.log("[Manifest Proxy] curl_cffi failed, falling back to native fetch:", e.message);
+    try {
+      const fetchRes = await fetch(targetUrl, {
+        headers: {
+          "Referer": referer,
+          "Origin": origin,
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36"
+        }
+      });
+      if (!fetchRes.ok) return res.status(fetchRes.status).send('Upstream error: ' + fetchRes.status);
+      out = await fetchRes.text();
+    } catch (err) {
+      return res.status(502).send('Upstream error: ' + err.message);
     }
+  }
     
     // Rewrite the manifest
     const lines = out.split('\n');
