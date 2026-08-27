@@ -112,7 +112,10 @@ global.fetch = async (url, opts) => {
       reqBody = await url.arrayBuffer();
     }
     
-    const proxyUrl = 'https://nuvio-proxy.odedararaj456.workers.dev/?url=' + encodeURIComponent(targetOrigin + '/fetch');
+    // Call embed.st/fetch DIRECTLY (no CF proxy) so the signed token is bound to
+    // the same IP that will later fetch the m3u8 (Render's IP).
+    // Using CF worker here causes a 403 because: token bound to CF IP, m3u8 fetched by Render IP.
+    const proxyUrl = targetOrigin + '/fetch';
     
     try {
       const fetchOpts = opts || (url.headers ? url : {});
