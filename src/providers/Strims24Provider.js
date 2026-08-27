@@ -316,7 +316,7 @@ class Strims24Provider extends BaseProvider {
       });
 
       for (const ch of uniqueChannels) {
-        const embedUrl = `https://main.wwin.cloud/player/lean/${encodeURIComponent(ch.id)}`;
+        const embedUrl = `https://iplayer.is/player/lean/${encodeURIComponent(ch.id)}`;
         let directUrl = null;
         let proxyReqHeaders = {
              'Referer': 'https://strims24.pl/'
@@ -338,7 +338,7 @@ class Strims24Provider extends BaseProvider {
                     const embedHtml = await embedRes.text();
                     let premiumMatch = embedHtml.match(/src=["']\/premium\/([^"']+)["']/);
                     if (!premiumMatch) {
-                        premiumMatch = embedHtml.match(/src=["']https:\/\/main\.wwin\.cloud\/premium\/([^"']+)["']/);
+                        premiumMatch = embedHtml.match(/src=["']https:\/\/iplayer\.is\/premium\/([^"']+)["']/);
                     }
                     
                     if (premiumMatch) {
@@ -357,13 +357,13 @@ class Strims24Provider extends BaseProvider {
 
         if (premiumSlug) {
             try {
-                const psignRes = await this.proxyFetch(`https://main.wwin.cloud/psign/${encodeURIComponent(premiumSlug)}`, {
-                    headers: { 'Referer': `https://main.wwin.cloud/premium/${premiumSlug}`, 'Accept': 'application/json' }
+                const psignRes = await this.proxyFetch(`https://iplayer.is/psign/${encodeURIComponent(premiumSlug)}`, {
+                    headers: { 'Referer': `https://iplayer.is/premium/${premiumSlug}`, 'Accept': 'application/json' }
                 });
                 const psignData = await psignRes.json();
                 if (psignData && psignData.url) {
                     directUrl = psignData.url;
-                    proxyReqHeaders['Referer'] = 'https://main.wwin.cloud/';
+                    proxyReqHeaders['Referer'] = 'https://iplayer.is/';
                 }
             } catch (e) {
                 console.error(`[${this.name}] Failed to fetch psign for slug ${premiumSlug}`, e.message);
@@ -396,8 +396,10 @@ class Strims24Provider extends BaseProvider {
         for (const cu of dbDetail.custom_urls) {
           if (cu.enabled === false) continue;
           let embedUrl = cu.url;
-          if (!/^https?:\/\//i.test(embedUrl)) {
-             embedUrl = `https://main.wwin.cloud${embedUrl.startsWith('/') ? '' : '/'}${embedUrl}`;
+          if (/^[a-f0-9]{32}$/i.test(embedUrl)) {
+             embedUrl = `https://iplayer.is/echo/${embedUrl}`;
+          } else if (!/^https?:\/\//i.test(embedUrl)) {
+             embedUrl = `https://iplayer.is${embedUrl.startsWith('/') ? '' : '/'}${embedUrl}`;
           }
 
           let directUrl = null;
@@ -421,7 +423,7 @@ class Strims24Provider extends BaseProvider {
                       const embedHtml = await embedRes.text();
                       let premiumMatch = embedHtml.match(/src=["']\/premium\/([^"']+)["']/);
                       if (!premiumMatch) {
-                          premiumMatch = embedHtml.match(/src=["']https:\/\/main\.wwin\.cloud\/premium\/([^"']+)["']/);
+                          premiumMatch = embedHtml.match(/src=["']https:\/\/iplayer\.is\/premium\/([^"']+)["']/);
                       }
                       
                       if (premiumMatch) {
@@ -440,13 +442,13 @@ class Strims24Provider extends BaseProvider {
 
           if (premiumSlug) {
               try {
-                  const psignRes = await this.proxyFetch(`https://main.wwin.cloud/psign/${encodeURIComponent(premiumSlug)}`, {
-                      headers: { 'Referer': `https://main.wwin.cloud/premium/${premiumSlug}`, 'Accept': 'application/json' }
+                  const psignRes = await this.proxyFetch(`https://iplayer.is/psign/${encodeURIComponent(premiumSlug)}`, {
+                      headers: { 'Referer': `https://iplayer.is/premium/${premiumSlug}`, 'Accept': 'application/json' }
                   });
                   const psignData = await psignRes.json();
                   if (psignData && psignData.url) {
                       directUrl = psignData.url;
-                      proxyReqHeaders['Referer'] = 'https://main.wwin.cloud/';
+                      proxyReqHeaders['Referer'] = 'https://iplayer.is/';
                   }
               } catch (e) {
                   console.error(`[${this.name}] Failed to fetch psign for slug ${premiumSlug}`, e.message);
