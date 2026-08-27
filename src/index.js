@@ -178,6 +178,9 @@ app.get('/api/manifest', async (req, res) => {
       }
       
       // If it's a .ts chunk, return the absolute URL directly (bypassing Nuvio for video data!)
+      if (absoluteUrl.includes('.image') && !absoluteUrl.includes('.ts')) {
+         absoluteUrl += '#.ts';
+      }
       return absoluteUrl;
     });
 
