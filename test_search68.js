@@ -1,8 +1,0 @@
-const fs = require('fs');
-let content = fs.readFileSync('lock.js', 'utf-8');
-
-const regex = /xwy5d8\[0x430\]/g;
-let m;
-while ((m = regex.exec(content)) !== null) {
-    console.log(content.substring(m.index - 50, m.index + 50));
-}
