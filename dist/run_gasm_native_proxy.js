@@ -1,34 +1,62 @@
 const fs = require('fs');
 const path = require('path');
 
-class Window {}
-class Document {}
+class EventTarget {
+  constructor() { this.listeners = {}; }
+  addEventListener(type, callback) { if (!this.listeners[type]) this.listeners[type] = []; this.listeners[type].push(callback); }
+  removeEventListener(type, callback) { if (!this.listeners[type]) return; const i = this.listeners[type].indexOf(callback); if (i !== -1) this.listeners[type].splice(i, 1); }
+  dispatchEvent(event) { if (!this.listeners[event.type]) return true; for (const listener of this.listeners[event.type]) listener(event); return !event.defaultPrevented; }
+}
+
+class Window extends EventTarget {
+  constructor() { super(); this.document = null; }
+  setTimeout(cb, ms) { return setTimeout(cb, ms); }
+  clearTimeout(id) { clearTimeout(id); }
+  setInterval(cb, ms) { return setInterval(cb, ms); }
+  clearInterval(id) { clearInterval(id); }
+}
+
+class Document extends EventTarget {
+  constructor() { super(); this.documentElement = new Element('html'); this.head = new Element('head'); this.body = new Element('body'); }
+  createElement(tag) { return new Element(tag); }
+  createTextNode(text) { return { nodeType: 3, textContent: text }; }
+  getElementById() { return null; }
+  querySelector() { return null; }
+}
+
+class Element extends EventTarget {
+  constructor(tag) { super(); this.tagName = tag.toUpperCase(); this.attributes = {}; this.children = []; this.style = {}; }
+  setAttribute(name, value) { this.attributes[name] = value; }
+  getAttribute(name) { return this.attributes[name] || null; }
+  appendChild(child) { this.children.push(child); }
+  removeChild(child) { const i = this.children.indexOf(child); if (i !== -1) this.children.splice(i, 1); }
+}
+
 global.Window = Window;
 global.Document = Document;
 Object.setPrototypeOf(global, Window.prototype);
 
-global.window = global;
+global.window = new Proxy(global, { get(t, p) { if (p !== 'Math' && p !== 'Object' && p !== 'Array' && p !== 'Promise' && typeof p === 'string' && p.length < 20) console.log('WIN GET:', p); return t[p]; } });
 global.self = global;
-const fullEmbedUrl = process.argv[5];
-let targetOrigin = 'https://embed.st';
+
+const fullEmbedUrl = process.argv[5] || 'https://embedindia.st/embed-noads/rally-tv';
+let targetOrigin = 'https://embedindia.st';
 let searchParams = '';
-let pathName = '/embed/admin/dummy/1';
-if (fullEmbedUrl) {
-    try {
-        const u = new URL(fullEmbedUrl);
-        targetOrigin = u.origin;
-        searchParams = u.search;
-        pathName = u.pathname;
-    } catch(e) {}
-}
+let pathName = '/embed-noads/rally-tv';
+try {
+    const u = new URL(fullEmbedUrl);
+    targetOrigin = u.origin;
+    searchParams = u.search;
+    pathName = u.pathname;
+} catch(e) {}
 
 global.location = { 
-  hostname: 'embed.st', 
-  href: fullEmbedUrl || 'https://embed.st/embed/dummy/dummy/1',
+  hostname: 'embedindia.st', 
+  href: fullEmbedUrl,
   search: searchParams,
   pathname: pathName
 };
-global.document = new Document();
+global.document = new Proxy(new Document(), { get(t, p) { console.log('DOC GET:', p); return t[p]; } });
 global.document.location = global.location;
 global.crypto = require('crypto').webcrypto;
 global.localStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
@@ -45,9 +73,9 @@ global.Request = function(input, init) {
 };
 
 let capturedGoat = null;
-
 const OriginalHeadersGet = global.Headers.prototype.get;
 global.Headers.prototype.get = function(name) {
+  if (name.toLowerCase() === 'indians') return capturedGoat;
   if (name.toLowerCase() === 'goat') return capturedGoat;
   return OriginalHeadersGet.call(this, name);
 };
@@ -64,8 +92,8 @@ global.WebAssembly.instantiateStreaming = async (resp, importObject) => {
   const r = await resp;
   const buffer = await r.arrayBuffer();
   
-  if (importObject['./locked_bg.js']) {
-    const bg = importObject['./locked_bg.js'];
+  if (importObject['./gasm_bg.js']) {
+    const bg = importObject['./gasm_bg.js'];
     for (const key of Object.keys(bg)) {
       if (typeof bg[key] === 'function') {
         const orig = bg[key];
@@ -91,6 +119,7 @@ global.WebAssembly.instantiateStreaming = async (resp, importObject) => {
       }
     }
   }
+
   return global.WebAssembly.instantiate(buffer, importObject);
 };
 
@@ -99,31 +128,41 @@ const originalFetch = global.fetch;
 global.fetch = async (url, opts) => {
   const urlStr = typeof url === 'string' ? url : (url.url || url.href);
   
-  if (urlStr.includes('lock.wasm')) {
-    const wasmPath = path.join(process.cwd(), 'lock.wasm');
+  if (urlStr.includes('gasm.wasm')) {
+    const wasmPath = path.join(__dirname, 'gasm.wasm');
     const wasmBuffer = fs.readFileSync(wasmPath);
     return new Response(wasmBuffer, { status: 200, headers: { 'Content-Type': 'application/wasm' } });
   }
   
   if (urlStr.includes('/fetch')) {
-    
     let reqBody = opts ? opts.body : (url.body ? await url.arrayBuffer() : undefined);
     if (url.arrayBuffer && typeof url.arrayBuffer === 'function' && !reqBody) {
       reqBody = await url.arrayBuffer();
     }
     
-    // Call embed.st/fetch DIRECTLY (no CF proxy) so the signed token is bound to
-    // the same IP that will later fetch the m3u8 (Render's IP).
-    // Using CF worker here causes a 403 because: token bound to CF IP, m3u8 fetched by Render IP.
     const proxyUrl = targetOrigin + '/fetch';
+    
+    console.log('POST DATA:', Buffer.from(reqBody).toString('hex'));
     
     try {
       const fetchOpts = opts || (url.headers ? url : {});
-      const reqHeaders = new Headers(fetchOpts.headers || {});
+      const reqHeaders = new Headers();
+      
+      if (fetchOpts.headers) {
+          if (fetchOpts.headers instanceof Headers) {
+              fetchOpts.headers.forEach((value, key) => reqHeaders.set(key, value));
+          } else if (Array.isArray(fetchOpts.headers)) {
+              for (const [key, value] of fetchOpts.headers) reqHeaders.set(key, value);
+          } else {
+              for (const key of Object.keys(fetchOpts.headers)) reqHeaders.set(key, fetchOpts.headers[key]);
+          }
+      }
+
       reqHeaders.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36');
       reqHeaders.set('Referer', fullEmbedUrl);
       reqHeaders.set('Origin', targetOrigin);
       reqHeaders.set('Content-Type', 'application/octet-stream');
+      console.log('HEADERS:', Array.from(reqHeaders.entries()));
       
       const response = await originalFetch(proxyUrl, {
           method: fetchOpts.method || 'POST',
@@ -140,52 +179,53 @@ global.fetch = async (url, opts) => {
       
       let realGoatHeader = null;
       for (let [k,v] of response.headers.entries()) {
+          if (k.toLowerCase() === 'indians') realGoatHeader = v;
           if (k.toLowerCase() === 'goat') realGoatHeader = v;
       }
-
-      const goatHeader = realGoatHeader || OriginalHeadersGet.call(response.headers, 'goat');
-      capturedGoat = goatHeader;
-      const newHeaders = new Headers();
-      for (let [k,v] of response.headers.entries()) {
-          newHeaders.set(k, v);
-      }
       
-      return new Response(responseBody, {
-          status: response.status,
-          statusText: response.statusText,
-          headers: newHeaders
+      const mockedResponse = new Response(responseBody, {
+          status: 200,
+          statusText: 'OK',
+          headers: new Headers({
+              'Content-Type': 'application/octet-stream',
+              'indians': realGoatHeader || 'mocked-indians-header',
+              'goat': realGoatHeader || 'mocked-goat-header'
+          })
       });
-    } catch (e) {
-      throw e;
+      capturedGoat = realGoatHeader;
+      
+      return mockedResponse;
+    } catch (err) {
+      console.error(`[WASM] Network error on proxy fetch: ${err.message}`);
+      process.exit(1);
     }
   }
   
-  return new Response('Not found', { status: 404 });
+  return originalFetch(url, opts);
 };
 
 (async () => {
   try {
-    const lockPath = require('url').pathToFileURL(require('path').join(process.cwd(), 'lock.js')).href;
+    const lockPath = require('url').pathToFileURL(path.join(__dirname, 'gasm.js')).href;
     const lock = await import(lockPath);
     await lock.default();
+    
+    if (lock.init_wasm) {
+        await lock.init_wasm();
+    }
+    
     try {
-      await lock.set_stream(process.argv[2], process.argv[3], process.argv[4]);
+      const u = process.argv[2] === 'EMPTY' ? '' : process.argv[2];
+      const e = process.argv[3] === 'EMPTY' ? '' : process.argv[3];
+      const i = process.argv[4] === 'EMPTY' ? '' : process.argv[4];
+      console.log(`Calling set_stream with: '${u}', '${e}', '${i}'`);
+      await lock.set_stream_jw ? await lock.set_stream_jw(u, e, i) : await lock.set_stream(u, e, i);
     } catch (err) {
       console.error("[WASM ERROR from set_stream]", err);
-      console.error("String val:", String(err));
-      console.error("Type of err:", typeof err);
-      if (err && typeof err === 'object') {
-          console.error("Err props:", Object.getOwnPropertyNames(err));
-      }
-      if (err) {
-          console.error("Stack:", err.stack);
-          console.error("Keys:", Object.keys(err));
-          console.error("Message:", err.message);
-          console.error("String:", err.toString());
-      }
+      process.exit(1);
     }
-  } catch (err) {
-    console.error("[WASM ERROR from init]", err);
+  } catch(e) {
+    console.error("[WASM] Fatal error in main wrapper:", e);
     process.exit(1);
   }
 })();
