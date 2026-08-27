@@ -7,7 +7,8 @@ class WatchFootyProvider extends BaseProvider {
   constructor(opts) {
     super(opts);
     this.name = 'WatchFooty';
-    this.apiUrl = 'https://api.watchfooty.st/api/v1/matches/football';
+    // Hitting the /all endpoint to fetch 13+ sports instead of just football
+    this.apiUrl = 'https://api.watchfooty.st/api/v1/matches/all';
     
     this.fetchMain = this.circuitBreaker.wrap(`${this.name}_fetchMain`, async () => {
       const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' };
@@ -44,8 +45,10 @@ class WatchFootyProvider extends BaseProvider {
 
           const matchTime = item.timestamp ? parseTimezone(item.timestamp, 'UTC') : Date.now();
           
-          // WatchFooty is mostly football
-          const category = 'football';
+          // Map dynamic sports directly from the API
+          const category = item.sport ? item.sport.toLowerCase() : 'football';
+
+          const posterUrl = item.poster ? (item.poster.startsWith('http') ? item.poster : `https://api.watchfooty.st${item.poster}`) : null;
 
           matches.push(new MatchEntity({
             id: `wf_${matchId}`,
@@ -53,6 +56,8 @@ class WatchFootyProvider extends BaseProvider {
             category: category,
             status: status,
             timestamp: matchTime,
+            poster: posterUrl,
+            background: posterUrl,
             sources: [{ source: 'watchfooty', id: matchId }]
           }));
         }
@@ -70,7 +75,8 @@ class WatchFootyProvider extends BaseProvider {
       const match = Array.isArray(data) ? data[0] : data;
       
       if (match && match.streams && Array.isArray(match.streams)) {
-        match.streams.forEach((s, idx) => {
+        let idx = 0;
+        for (const s of match.streams) {
           if (s.url) {
             const isDirect = s.url.includes('.m3u8') || s.url.includes('.mp4');
             const entityParams = {
@@ -91,13 +97,32 @@ class WatchFootyProvider extends BaseProvider {
                   }
                 }
               };
+              streams.push(new StreamEntity(entityParams));
+            } else if (s.url.includes('sportsembed.su') || s.url.includes('watchfooty.st/embed')) {
+              try {
+                  console.log(`[WatchFootyProvider] Triggering native extraction for: ${s.url}`);
+                  const { extractSportsEmbed } = require('./SportsEmbedExtractor');
+                  const { BASE_URL } = require('../config');
+                  const m3u8Url = await extractSportsEmbed(s.url);
+                  if (m3u8Url) {
+                      console.log(`[WatchFootyProvider] Successfully extracted M3U8: ${m3u8Url}`);
+                      const proxyUrl = `${BASE_URL}/api/manifest?url=${encodeURIComponent(m3u8Url)}&referer=${encodeURIComponent('https://sportsembed.su/')}&origin=${encodeURIComponent('https://sportsembed.su')}`;
+                      entityParams.url = proxyUrl;
+                      entityParams.behaviorHints = { notWebReady: true };
+                      streams.push(new StreamEntity(entityParams));
+                  }
+              } catch (e) {
+                  console.error(`[WatchFootyProvider] Native extract failed for ${s.url}`, e.message);
+                  entityParams.externalUrl = `/watch?url=${encodeURIComponent(s.url)}&title=${encodeURIComponent(matchTitle || 'WatchFooty')}`;
+                  streams.push(new StreamEntity(entityParams));
+              }
             } else {
               entityParams.externalUrl = `/watch?url=${encodeURIComponent(s.url)}&title=${encodeURIComponent(matchTitle || 'WatchFooty')}`;
+              streams.push(new StreamEntity(entityParams));
             }
-            
-            streams.push(new StreamEntity(entityParams));
           }
-        });
+          idx++;
+        }
       }
     } catch (err) {
       console.error(`[${this.name}] resolveStream failed for ${sourceId}:`, err.message);

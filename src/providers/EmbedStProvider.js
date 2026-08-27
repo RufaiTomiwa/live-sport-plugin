@@ -42,7 +42,7 @@ class EmbedStProvider extends BaseProvider {
         const event = parts[parts.length - 2];
         const id    = parts[parts.length - 1];
 
-        if (user && event && id) {
+        if (user && event && id && !embedUrl.includes('sportsembed.su')) {
           console.log(`[${this.name}] Decrypting native WASM for ${user}/${event}/${id}...`);
 
           const m3u8Url = await new Promise((resolve) => {
@@ -74,6 +74,26 @@ class EmbedStProvider extends BaseProvider {
           } else {
             console.warn(`[${this.name}] Native decryption failed to extract M3U8 for ${embedUrl}`);
           }
+        } else if (embedUrl.includes('sportsembed.su') || embedUrl.includes('watchfooty.st/embed')) {
+            console.log(`[${this.name}] Decrypting native WASM for sportsembed...`);
+            try {
+                const { extractSportsEmbed } = require('./SportsEmbedExtractor');
+                const m3u8Url = await extractSportsEmbed(embedUrl);
+                if (m3u8Url) {
+                    console.log(`[${this.name}] Natively decrypted M3U8 for sportsembed: ${m3u8Url}`);
+                    const { BASE_URL } = require('../config');
+                    const proxyUrl = `${BASE_URL}/api/manifest?url=${encodeURIComponent(m3u8Url)}&referer=${encodeURIComponent('https://sportsembed.su/')}&origin=${encodeURIComponent('https://sportsembed.su')}`;
+                    streams.push(new StreamEntity({
+                        name: 'EmbedSt',
+                        title: `[Direct] ${matchTitle}`,
+                        url: proxyUrl,
+                        behaviorHints: { notWebReady: true },
+                        resolution: 'HD'
+                    }));
+                }
+            } catch (err) {
+                console.warn(`[${this.name}] SportsEmbed Decryptor error: ${err.message}`);
+            }
         }
       } catch (err) {
         console.warn(`[${this.name}] Decryptor error for ${embedUrl}: ${err.message}`);
