@@ -33,6 +33,56 @@ class EmbedStProvider extends BaseProvider {
 
     // CF Worker edge-scraper removed per user request
 
+    // ─── Tier 0: Iframe redirect detection ───────────────────────────────────
+    // Some embed.st pages (e.g. dead channels like rally-tv) swap their native 
+    // stream for an <iframe src="https://embedindia.st/..."> fallback.
+    // WASM would still extract a token for the dead stream → 404/Not found.
+    // We detect this by quickly fetching the embed HTML and checking for iframes
+    // pointing at known external providers. If found, skip WASM entirely.
+    const IFRAME_FALLBACK_DOMAINS = ['embedindia.st', 'embedindia.com', 'embedsport.xyz', 'sportsembed.su'];
+    if (streams.length === 0 && !embedUrl.includes('sportsembed.su')) {
+      try {
+        const axios = require('axios');
+        const https = require('https');
+        const htmlRes = await axios.get(embedUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
+            'Referer': referer,
+            'Accept': 'text/html'
+          },
+          httpsAgent: new https.Agent({ family: 4 }),
+          timeout: 6000,
+          validateStatus: s => s < 500
+        });
+        const html = typeof htmlRes.data === 'string' ? htmlRes.data : '';
+        // Match <iframe src="https://embedindia.st/..."> pattern
+        const iframeMatch = html.match(/src="(https:\/\/([^/"]+)[^"]+)"/g);
+        if (iframeMatch) {
+          for (const attr of iframeMatch) {
+            const srcMatch = attr.match(/src="(https?:\/\/[^"]+)"/);
+            if (!srcMatch) continue;
+            const iframeSrc = srcMatch[1];
+            try {
+              const iframeHost = new URL(iframeSrc).hostname;
+              if (IFRAME_FALLBACK_DOMAINS.includes(iframeHost)) {
+                console.log(`[${this.name}] Detected iframe redirect → ${iframeSrc} for ${matchTitle}. Skipping WASM.`);
+                const iframeReferer = new URL(iframeSrc).origin + '/';
+                streams.push(new StreamEntity({
+                  name: 'EmbedSt',
+                  title: `${matchTitle} (Live)`,
+                  externalUrl: `/watch?mode=extract&embed=${encodeURIComponent(iframeSrc)}&referer=${encodeURIComponent(iframeReferer)}&title=${encodeURIComponent(matchTitle || 'Live Event')}`
+                }));
+                break; // only use first matching iframe
+              }
+            } catch (_) {}
+          }
+        }
+      } catch (e) {
+        // Non-fatal - if HTML fetch fails just fall through to WASM
+        console.warn(`[${this.name}] Iframe detection prefetch failed for ${embedUrl}: ${e.message}`);
+      }
+    }
+
     // ─── Tier 1: Native WASM decryption ─────────────────────────────────────
     if (streams.length === 0) {
       try {
