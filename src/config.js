@@ -26,6 +26,4 @@ const BASE_URL = (
   `http://${getLocalIp()}:${PORT}`                              // Local dev fallback to LAN IP
 ).replace(/\/$/, '');                                           // Strip trailing slash if any
 
-const CF_PROXY_URL = process.env.CF_PROXY_URL ? process.env.CF_PROXY_URL.replace(/\/$/, '') : null;
-
-module.exports = { PORT, BASE_URL, CF_PROXY_URL };
+module.exports = { PORT, BASE_URL };

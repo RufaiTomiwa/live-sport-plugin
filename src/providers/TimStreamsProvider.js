@@ -194,10 +194,8 @@ class TimStreamsProvider extends BaseProvider {
 
         if (m3u8Url) {
           console.log(`[${this.name}] Extracted M3U8 for ${matchTitle}: ${m3u8Url}`);
-          const { BASE_URL, CF_PROXY_URL } = require('../config');
-          const proxyUrl = CF_PROXY_URL
-            ? `${CF_PROXY_URL}/?url=${encodeURIComponent(m3u8Url)}&referer=${encodeURIComponent(referer)}&origin=${encodeURIComponent(new URL(referer).origin)}`
-            : `${BASE_URL}/api/manifest?url=${encodeURIComponent(m3u8Url)}&referer=${encodeURIComponent(referer)}&origin=${encodeURIComponent(new URL(referer).origin)}`;
+          const { BASE_URL } = require('../config');
+          const proxyUrl = `${BASE_URL}/api/manifest?url=${encodeURIComponent(m3u8Url)}&referer=${encodeURIComponent(referer)}&origin=${encodeURIComponent(new URL(referer).origin)}`;
             
           streams.push(new StreamEntity({
             name: 'TimStreams',
