@@ -1,11 +1,5 @@
 // Hardcoded CF proxy pool — add more URLs to multiply free-tier limits
-const CF_PROXY_POOL = [
-  'https://nuvio-proxy.odedararaj456.workers.dev',
-  'https://nuvio-proxy2.rajodedara360.workers.dev',
-  'https://nuvio-proxy3.raj-odedara.workers.dev',
-  'https://spring-brook-5c1e.rajodedara456.workers.dev',
-  'https://falling-unit-ffa6.rajcfproxy1.workers.dev',
-];
+const CF_PROXY_POOL = [];
 
 // Pick a random proxy from the pool
 function getCfProxyUrl() {
@@ -87,7 +81,32 @@ class BaseProvider {
       url = proxyUrl.toString();
     }
     
-    return fetch(url, options);
+    // Direct fetch as fallback using Axios (forces IPv4 to match manifest proxy IP-locking)
+    const axios = require('axios');
+    const https = require('https');
+    
+    try {
+      const axiosOptions = {
+        method: options.method || 'GET',
+        headers: options.headers || {},
+        httpsAgent: new https.Agent({ family: 4 }), // Force IPv4
+        timeout: 10000,
+        validateStatus: () => true // Don't throw on error status codes
+      };
+      
+      if (options.body) axiosOptions.data = options.body;
+      
+      const res = await axios(url, axiosOptions);
+      return {
+        ok: res.status >= 200 && res.status < 300,
+        status: res.status,
+        text: async () => typeof res.data === 'string' ? res.data : JSON.stringify(res.data),
+        json: async () => typeof res.data === 'string' ? JSON.parse(res.data) : res.data
+      };
+    } catch (err) {
+      console.error(`[BaseProvider] Axios fetch error: ${err.message}`);
+      throw err;
+    }
   }
 
   /**
