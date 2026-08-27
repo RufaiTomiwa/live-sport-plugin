@@ -12,6 +12,7 @@
     "check-sources": "node scripts/check-sources.js"
   },
   "dependencies": {
+    "acorn": "^8.18.0",
     "awilix": "^13.0.5",
     "axios": "^1.19.0",
     "big-integer": "^1.6.52",
