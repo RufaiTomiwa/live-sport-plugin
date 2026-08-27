@@ -127,19 +127,22 @@ app.get('/api/manifest', async (req, res) => {
        throw new Error(out);
     }
   } catch (e) {
-    console.log("[Manifest Proxy] curl_cffi failed, falling back to native fetch:", e.message);
+    console.log("[Manifest Proxy] curl_cffi failed, falling back to axios IPv4:", e.message);
     try {
-      const fetchRes = await fetch(targetUrl, {
+      const axios = require('axios');
+      const https = require('https');
+      const fetchRes = await axios.get(targetUrl, {
         headers: {
           "Referer": referer,
           "Origin": origin,
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36"
-        }
+        },
+        httpsAgent: new https.Agent({ family: 4 }), // Force IPv4
+        timeout: 10000
       });
-      if (!fetchRes.ok) return res.status(fetchRes.status).send('Upstream error: ' + fetchRes.status);
-      out = await fetchRes.text();
+      out = fetchRes.data;
     } catch (err) {
-      return res.status(502).send('Upstream error: ' + err.message);
+      return res.status(502).send('Upstream error: ' + (err.response ? err.response.status : err.message));
     }
   }
     
