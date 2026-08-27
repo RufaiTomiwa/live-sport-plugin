@@ -19,4 +19,6 @@ const BASE_URL = (
   `http://localhost:${PORT}`                                    // Local dev fallback
 ).replace(/\/$/, '');                                           // Strip trailing slash if any
 
-module.exports = { PORT, BASE_URL };
+const CF_PROXY_URL = process.env.CF_PROXY_URL ? process.env.CF_PROXY_URL.replace(/\/$/, '') : null;
+
+module.exports = { PORT, BASE_URL, CF_PROXY_URL };
