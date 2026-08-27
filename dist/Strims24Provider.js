@@ -22,7 +22,7 @@ class Strims24Provider extends BaseProvider {
 
     this.fetchData = this.circuitBreaker.wrap(`${this.name}_fetch`, async (url, headers = {}) => {
       const res = await this.proxyFetch(url, { headers, signal: AbortSignal.timeout(15000) });
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      if (!res.ok && res.status !== 404) throw new Error(`HTTP error! status: ${res.status}`);
       return res;
     });
   }
@@ -122,11 +122,11 @@ class Strims24Provider extends BaseProvider {
     try {
       const url = `${this.baseUrl}/api/v1/${sport}/${date}`;
       const res = await this.fetchData.fire(url);
-      if (!res) return [];
+      if (!res || res.status !== 200) return [];
       const data = await res.json();
       return Array.isArray(data.items) ? data.items : [];
     } catch (e) {
-      console.error(`[${this.name}] Failed to fetch strims matches for ${sport}`, e.message);
+      console.error(`[${this.name}] Failed to fetch matches for ${sport}`, e.message);
       return [];
     }
   }
@@ -134,7 +134,7 @@ class Strims24Provider extends BaseProvider {
   async fetchStrimsChannels() {
     try {
       const res = await this.fetchData.fire(`${this.baseUrl}/api/v1/channels`);
-      if (!res) return {};
+      if (!res || res.status !== 200) return {};
       const data = await res.json();
       const arr = Array.isArray(data) ? data : (data && Array.isArray(data.items)) ? data.items : (data && Array.isArray(data.channels)) ? data.channels : [];
       const userChannels = {};
@@ -156,7 +156,7 @@ class Strims24Provider extends BaseProvider {
   async fetchMatchTvChannelIds(matchId) {
     try {
       const res = await this.fetchData.fire(`${this.flashBase}/df_dos_1_${matchId}_`, { 'x-fsign': this.flashSign, accept: '*/*' });
-      if (!res) return [];
+      if (!res || res.status !== 200) return [];
       const text = await res.text();
       const m = text.match(/AL÷(\{[^¬]+\})/);
       return m ? this.parseTvChannels(m[1]) : [];
@@ -258,7 +258,7 @@ class Strims24Provider extends BaseProvider {
 
   async resolveStream(sourceId, matchCategory, matchTitle) {
     try {
-      const streams = [];
+          const streams = [];
       const isFs = sourceId.startsWith('FS:');
       const isCh = sourceId.startsWith('CH:');
       const cleanId = sourceId.replace(/^(FS:|CUST:|CH:)/, '');
@@ -266,7 +266,7 @@ class Strims24Provider extends BaseProvider {
       let dbDetail = null;
       if (!isCh) {
           const dbDetailRes = await this.fetchData.fire(`${this.baseUrl}/api/v1/match/${sourceId}`).catch(() => null);
-          if (dbDetailRes) dbDetail = await dbDetailRes.json();
+          if (dbDetailRes && dbDetailRes.status === 200) dbDetail = await dbDetailRes.json();
       }
 
       const userChannels = await this.fetchStrimsChannels();
