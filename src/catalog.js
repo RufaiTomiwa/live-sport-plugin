@@ -120,10 +120,11 @@ function mapMatchToMetaPreview(match, config = {}) {
      releasedIso = dateObj.toISOString();
      const options = { hour: '2-digit', minute: '2-digit' };
      
-     // Default to UTC if not specified by client, instead of server local time
-     options.timeZone = (config && config.timezone) ? config.timezone : 'UTC';
+     if (config && config.timezone) {
+       options.timeZone = config.timezone;
+     }
      
-     timeString = dateObj.toLocaleTimeString('en-US', options) + (options.timeZone === 'UTC' ? ' UTC' : '');
+     timeString = dateObj.toLocaleTimeString('en-US', options) + (options.timeZone ? ` (${options.timeZone})` : '');
      
      const now = Date.now();
      const diff = dateObj.getTime() - now;

@@ -42,7 +42,20 @@ const manifest = {
 
   config: [
     { key: 'teams', title: 'Favorite Teams (comma separated)', type: 'text' },
-    { key: 'sports', title: 'Enabled Sports (comma separated)', type: 'text', default: 'all' }
+    { key: 'sports', title: 'Enabled Sports (comma separated)', type: 'text', default: 'all' },
+    { 
+      key: 'timezone', 
+      title: 'Timezone', 
+      type: 'select',
+      default: 'UTC',
+      options: [
+        'UTC',
+        'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
+        'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'Europe/Moscow',
+        'Asia/Dubai', 'Asia/Kolkata', 'Asia/Bangkok', 'Asia/Tokyo',
+        'Australia/Sydney', 'Pacific/Auckland'
+      ]
+    }
   ],
 
   idPrefixes: ['nuvio_sport_'],
