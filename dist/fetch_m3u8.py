@@ -1,4 +1,5 @@
 import sys
+import os
 try:
     from curl_cffi import requests
 except ImportError:
@@ -15,8 +16,11 @@ headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36"
 }
 
+proxy_url = os.environ.get("RESIDENTIAL_PROXY")
+proxies = {"http": proxy_url, "https": proxy_url} if proxy_url else None
+
 try:
-    r = requests.get(m3u8_url, headers=headers, impersonate="chrome124", timeout=10)
+    r = requests.get(m3u8_url, headers=headers, impersonate="chrome124", timeout=10, proxies=proxies)
     if r.status_code == 200:
         print(r.text)
     else:

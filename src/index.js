@@ -142,7 +142,7 @@ app.get('/api/manifest', async (req, res) => {
       });
       out = fetchRes.data;
     } catch (err) {
-      return res.status(502).send('Upstream error: ' + (err.response ? err.response.status : err.message));
+      return res.status(502).send('Axios fallback failed: ' + (err.response ? err.response.status : err.message) + ' | Python Error: ' + e.message);
     }
   }
     
