@@ -47,6 +47,10 @@ class TimStreamsProvider extends BaseProvider {
           const parsed = parseTimezone(s.time, 'America/New_York');
           if (parsed) dateMs = parsed;
         }
+        
+        const now = Date.now();
+        const FOUR_HOURS = 4 * 60 * 60 * 1000;
+        const isLive = dateMs <= now && dateMs > now - FOUR_HOURS;
 
         const sources = (s.streams || [])
           .filter(st => !st.vip)
@@ -69,7 +73,7 @@ class TimStreamsProvider extends BaseProvider {
             title: title,
             category: category,
             date: dateMs.toString(),
-            popular: s.featured ? '1' : '0',
+            popular: (isLive || s.featured) ? '1' : '0',
             sources: sources,
             thumbnail_url: s.logo || ''
           }));

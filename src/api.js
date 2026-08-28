@@ -269,9 +269,13 @@ async function getAllMatches() {
         if (s.time) {
           const parsed = new Date(s.time).getTime();
           if (!isNaN(parsed)) dateMs = parsed;
-        }
+          }
+          
+          const now = Date.now();
+          const FOUR_HOURS = 4 * 60 * 60 * 1000;
+          const isLive = dateMs <= now && dateMs > now - FOUR_HOURS;
 
-        // Filter out vip-only streams and map to sources
+          // Filter out vip-only streams and map to sources
         const tsSources = (s.streams || [])
           .filter(st => !st.vip)
           .map(st => ({
@@ -287,7 +291,7 @@ async function getAllMatches() {
           title: title,
           category: category,
           date: dateMs.toString(),
-          popular: s.featured ? '1' : '0',
+          popular: (isLive || s.featured) ? '1' : '0',
           sources: tsSources,
           league: '',
           team1: null,
