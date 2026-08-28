@@ -132,19 +132,18 @@ app.get('/api/manifest', async (req, res) => {
     console.log("[Manifest Proxy] impit failed, falling back to undici:", e.message);
     try {
       const { request } = require('undici');
-      const https = require('https');
       const fetchRes = await request(targetUrl, {
         headers: {
           "Referer": referer,
           "Origin": origin,
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36"
         },
-        httpsAgent: new https.Agent({ family: 4 }), // Force IPv4
-        timeout: 10000
+        headersTimeout: 10000,
+        bodyTimeout: 10000
       });
-      out = fetchRes.data;
+      out = await fetchRes.body.text();
     } catch (err) {
-      return res.status(502).send('Axios fallback failed: ' + (err.response ? err.response.status : err.message) + ' | Impit Error: ' + e.message);
+      return res.status(502).send('Undici fallback failed: ' + err.message + ' | Impit Error: ' + e.message);
     }
   }
     
