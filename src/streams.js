@@ -209,7 +209,11 @@ async function handleStream(type, id, config) {
 
     let originalTitle = s.title || '';
     let channelName = '';
+    let viewersText = '';
     if (originalTitle) {
+      const vMatch = originalTitle.match(/👥\s*\d+\s*Viewers/);
+      if (vMatch) viewersText = `\n${vMatch[0]}`;
+
       const match = originalTitle.match(/\(([^)]+)\)/);
       if (match && match[1]) {
         const inner = match[1];
@@ -224,11 +228,12 @@ async function handleStream(type, id, config) {
     s.name = isWeb ? '🌐 Web Stream' : '⚡ Direct Stream';
     
     if (channelName) {
-      channelName = channelName.split(/[ _-]/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ').trim();
+      // Don't format title case if it breaks our channel name. Actually, just clean it up slightly.
+      channelName = channelName.trim();
     }
     
     const channelDisplay = channelName ? ` | 📺 ${channelName}` : '';
-    s.title = `${icon} ${providerName}${channelDisplay}\n⚙️ Quality: ${quality}`;
+    s.title = `${icon} ${providerName}${channelDisplay}\n📺 Quality: ${quality}${viewersText}`;
     
     // Add behaviorHints to group streams and handle CORS for direct streams
     s.behaviorHints = s.behaviorHints || {};
