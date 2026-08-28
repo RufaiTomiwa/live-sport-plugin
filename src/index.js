@@ -129,11 +129,11 @@ app.get('/api/manifest', async (req, res) => {
     if (!fetchRes.ok) throw new Error(`HTTP ${fetchRes.status}`);
     out = await fetchRes.text();
   } catch (e) {
-    console.log("[Manifest Proxy] impit failed, falling back to axios IPv4:", e.message);
+    console.log("[Manifest Proxy] impit failed, falling back to undici:", e.message);
     try {
-      const axios = require('axios');
+      const { request } = require('undici');
       const https = require('https');
-      const fetchRes = await axios.get(targetUrl, {
+      const fetchRes = await request(targetUrl, {
         headers: {
           "Referer": referer,
           "Origin": origin,
@@ -250,13 +250,15 @@ app.get('/api/proxy-embed', async (req, res) => {
     };
     if (referer) headers['Referer'] = referer;
 
-    const upstream = await fetch(parsed.toString(), {
+    const { request } = require('undici');
+    const upstream = await request(parsed.toString(), {
       headers,
-      signal: AbortSignal.timeout(12000),
-      redirect: 'follow',
+      headersTimeout: 12000,
+      bodyTimeout: 12000,
+      maxRedirections: 5
     });
 
-    const html = await upstream.text();
+    const html = await upstream.body.text();
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Access-Control-Allow-Origin', '*');

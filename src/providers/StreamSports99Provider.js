@@ -127,7 +127,9 @@ class StreamSports99Provider extends BaseProvider {
 
             // --- INTERNAL FALLBACK ---
             try {
-              const playerRes = await fetch(ch.url, {
+              const { request } = require('undici');
+              const playerRes = await request(ch.url, {
+                headersTimeout: 15000, bodyTimeout: 15000,
                 headers: {
                   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                   'Referer': 'https://streamsports99.fun/'
@@ -136,7 +138,7 @@ class StreamSports99Provider extends BaseProvider {
               });
               
               if (playerRes.ok) {
-                const html = await playerRes.text();
+                const html = await playerRes.body.text();
                 const decoderMatch = html.match(/function\s+([a-zA-Z0-9_]+)\s*\([a-zA-Z0-9_]+\)\s*\{.+?atob/);
                 if (decoderMatch) {
                   const decoderName = decoderMatch[1];

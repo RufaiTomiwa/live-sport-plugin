@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
 const cheerio = require('cheerio');
-const axios = require('axios');
+const { request } = require('undici');
 const BaseProvider = require('../providers/BaseProvider');
 const MatchEntity = require('../domain/MatchEntity');
 const StreamEntity = require('../domain/StreamEntity');
@@ -14,7 +14,10 @@ class GenericYamlProvider extends BaseProvider {
     this.config = config;
 
     this.fetchData = this.circuitBreaker.wrap(`${this.name}_fetch`, async () => {
-      const res = await axios.get(this.config.baseUrl, { timeout: 10000 });
+      const res_req = await request(this.config.baseUrl, { headersTimeout: 10000, bodyTimeout: 10000 });
+    const res = {
+      data: await res_req.body.text().then(t => { try { return JSON.parse(t); } catch(e) { return t; } })
+    };
       return res.data;
     });
   }

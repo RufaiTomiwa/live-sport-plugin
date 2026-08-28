@@ -36,7 +36,8 @@ class CronService {
       cron.schedule('*/14 * * * *', async () => {
         try {
           console.log(`[CronService] Pinging external URL to prevent sleep...`);
-          await fetch(`${externalUrl}/health`);
+          const { request } = require('undici');
+          await request(`${externalUrl}/health`);
         } catch (err) {
           console.error('[CronService] Keep-alive ping failed:', err.message);
         }

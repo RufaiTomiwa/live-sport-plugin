@@ -14,7 +14,6 @@
   "dependencies": {
     "acorn": "^8.18.0",
     "awilix": "^13.0.5",
-    "axios": "^1.19.0",
     "big-integer": "^1.6.52",
     "cheerio": "^1.2.0",
     "cors": "^2.8.5",
@@ -32,13 +31,13 @@
     "m3u8-parser": "^7.2.0",
     "nock": "^14.0.16",
     "node-cron": "^4.6.0",
-    "node-fetch": "^2.7.0",
     "opossum": "^10.0.0",
     "playwright": "^1.62.1",
     "playwright-extra": "^4.3.6",
     "puppeteer": "^25.9.0",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
-    "stremio-addon-sdk": "^1.6.10"
+    "stremio-addon-sdk": "^1.6.10",
+    "undici": "^8.10.0"
   },
   "engines": {
     "node": ">=22.0.0"

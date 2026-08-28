@@ -1,4 +1,4 @@
-const axios = require('axios');
+const { request } = require('undici');
 const m3u8Parser = require('m3u8-parser');
 
 class M3U8ParserService {
@@ -9,7 +9,10 @@ class M3U8ParserService {
    */
   async getHighestQuality(manifestUrl) {
     try {
-      const res = await axios.get(manifestUrl, { timeout: 5000 });
+      const res_req = await request(manifestUrl, { headersTimeout: 5000, bodyTimeout: 5000 });
+        const res = {
+          data: await res_req.body.text()
+        };
       const parser = new m3u8Parser.Parser();
       parser.push(res.data);
       parser.end();
