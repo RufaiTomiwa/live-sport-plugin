@@ -89,6 +89,9 @@ class StreamedPkProvider extends BaseProvider {
 
       const streamList = await this.fetchStreams.fire(streamSource, streamId);
       if (Array.isArray(streamList)) {
+        // Sort streams by viewer count (descending)
+        streamList.sort((a, b) => (b.viewers || 0) - (a.viewers || 0));
+
         // Chunk the stream list to prevent memory spiking on Render (512MB RAM limit).
         // Executing max 3 WASM child processes at a time keeps RAM usage very safe.
         const CHUNK_SIZE = 3;
@@ -98,7 +101,9 @@ class StreamedPkProvider extends BaseProvider {
           const resolvePromises = chunk.map(async (streamItem) => {
             if (!streamItem.embedUrl) return [];
             
-            const label = streamItem.language ? `${matchTitle} (${streamItem.language})` : `${matchTitle} Stream ${streamItem.streamNo || 1}`;
+            const viewersText = streamItem.viewers != null ? `👥 ${streamItem.viewers} Viewers` : '';
+            const baseLabel = streamItem.language ? `${matchTitle} (${streamItem.language})` : `${matchTitle} Stream ${streamItem.streamNo || 1}`;
+            const label = viewersText ? `${baseLabel} | ${viewersText}` : baseLabel;
             
             if (streamItem.embedUrl.includes('embedindia') && this.embedIndiaProvider) {
               return await this.embedIndiaProvider.resolveStream(
