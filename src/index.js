@@ -117,17 +117,19 @@ app.get('/api/manifest', async (req, res) => {
   try {
     let out = '';
   try {
-    const scriptPath = path.join(__dirname, '..', 'scripts', 'fetch_m3u8.py');
-    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
-    const cmd = `${pythonCmd} "${scriptPath}" "${targetUrl}" "${referer}" "${origin}"`;
-    
-    out = child_process.execSync(cmd, { encoding: 'utf8', timeout: 15000 });
-    
-    if (out.startsWith('MISSING_CURL_CFFI') || out.startsWith('ERROR_')) {
-       throw new Error(out);
-    }
+    const { Impit } = require('impit');
+    const client = new Impit();
+    const fetchRes = await client.fetch(targetUrl, {
+      headers: {
+        "Referer": referer,
+        "Origin": origin,
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36"
+      }
+    });
+    if (!fetchRes.ok) throw new Error(`HTTP ${fetchRes.status}`);
+    out = await fetchRes.text();
   } catch (e) {
-    console.log("[Manifest Proxy] curl_cffi failed, falling back to axios IPv4:", e.message);
+    console.log("[Manifest Proxy] impit failed, falling back to axios IPv4:", e.message);
     try {
       const axios = require('axios');
       const https = require('https');
@@ -142,7 +144,7 @@ app.get('/api/manifest', async (req, res) => {
       });
       out = fetchRes.data;
     } catch (err) {
-      return res.status(502).send('Axios fallback failed: ' + (err.response ? err.response.status : err.message) + ' | Python Error: ' + e.message);
+      return res.status(502).send('Axios fallback failed: ' + (err.response ? err.response.status : err.message) + ' | Impit Error: ' + e.message);
     }
   }
     
