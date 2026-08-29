@@ -12,12 +12,24 @@ function isMatchLive(match) {
   if (!match) return false;
   if (match.category === 'networks') return true;
 
-  const now = Date.now();
-  const kickoff = match.date ? parseInt(match.date, 10) : 0;
-
-  if (match.status === 'finished' || match.status === 'ended') {
+  // 1. Explicit finished / postponed / cancelled statuses are never live
+  if (match.status === 'finished' || match.status === 'ended' || match.status === 'postponed' || match.status === 'cancelled') {
     return false;
   }
+
+  // 2. Explicit live status from provider
+  if (match.status === 'live' || match.status === 'in' || match.status === 'in_progress') {
+    return true;
+  }
+
+  // 3. Explicit upcoming / pre-match status from provider
+  if (match.status === 'upcoming' || match.status === 'pre') {
+    return false;
+  }
+
+  // 4. Time-based evaluation when status is not explicitly set
+  const now = Date.now();
+  const kickoff = match.date ? parseInt(match.date, 10) : 0;
 
   if (kickoff > 0) {
     // If kickoff is more than 15 minutes in the future, it's definitely UPCOMING, not live
@@ -27,6 +39,9 @@ function isMatchLive(match) {
 
     const durations = {
       cricket: 8 * 60 * 60 * 1000,
+      mma: 6 * 60 * 60 * 1000,
+      fighting: 6 * 60 * 60 * 1000,
+      boxing: 5 * 60 * 60 * 1000,
       motorsport: 4 * 60 * 60 * 1000,
       american_football: 4 * 60 * 60 * 1000,
       baseball: 3.5 * 60 * 60 * 1000,
@@ -36,7 +51,6 @@ function isMatchLive(match) {
       football: 2.5 * 60 * 60 * 1000,
       rugby: 2.5 * 60 * 60 * 1000,
       hockey: 3 * 60 * 60 * 1000,
-      mma: 5 * 60 * 60 * 1000,
       darts: 4 * 60 * 60 * 1000
     };
     const maxDuration = durations[match.category] || (3 * 60 * 60 * 1000);
@@ -44,7 +58,7 @@ function isMatchLive(match) {
     return now >= (kickoff - 15 * 60 * 1000) && now <= (kickoff + maxDuration);
   }
 
-  return match.status === 'live' || match.status === 'in_progress';
+  return false;
 }
 
 function mapMatchToMetaPreview(match, config = {}) {
