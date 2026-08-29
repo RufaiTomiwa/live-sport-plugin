@@ -8,6 +8,7 @@
     "dev": "node --watch-path=src src/index.js",
     "build": "npx @vercel/ncc build src/index.js -o dist --minify && npx -y copyfiles -f \"src/providers/*.wasm\" \"src/providers/*.js\" dist",
     "test": "jest",
+    "test:247": "node scripts/test-247-channels.js",
     "generate:provider": "node scripts/generate-provider.js",
     "check-sources": "node scripts/check-sources.js"
   },
