@@ -4,283 +4,333 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Nuvio Live Sports</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --bg: #09090b;
-      --card-bg: rgba(28, 28, 30, 0.4);
-      --card-border: rgba(255, 255, 255, 0.05);
-      --text: #f8fafc;
-      --text-muted: #94a3b8;
-      --accent: #ef4444;
-      --accent-glow: rgba(239, 68, 68, 0.3);
-      --glass: rgba(15, 15, 17, 0.7);
-    }
-    * { box-sizing: border-box; }
-    body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 0; min-height: 100vh; }
-    header { position: sticky; top: 0; z-index: 50; background: var(--glass); backdrop-filter: blur(16px); padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); }
-    .brand { font-family: 'Outfit', sans-serif; font-size: 1.8rem; font-weight: 900; background: linear-gradient(to right, #fff, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    main { padding: 40px; max-width: 1600px; margin: 0 auto; }
-    
-    .tabs { display: flex; gap: 15px; margin-bottom: 30px; overflow-x: auto; padding-bottom: 10px; }
-    .tab { padding: 10px 20px; border-radius: 30px; background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: var(--text-muted); cursor: pointer; font-weight: 600; transition: all 0.2s; white-space: nowrap; }
-    .tab:hover { background: rgba(255,255,255,0.1); color: white; }
-    .tab.active { background: var(--accent); color: white; border-color: var(--accent); box-shadow: 0 4px 15px var(--accent-glow); }
-    
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 30px; }
-    .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 20px; overflow: hidden; cursor: pointer; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); position: relative; }
-    .card:hover { transform: translateY(-8px) scale(1.02); border-color: var(--accent); box-shadow: 0 20px 40px rgba(0,0,0,0.6), 0 0 20px var(--accent-glow); z-index: 10; }
-    .poster-container { position: relative; width: 100%; aspect-ratio: 16/9; background: #111; overflow: hidden; }
-    .background { width: 100%; height: 100%; object-fit: cover; filter: blur(20px) brightness(0.5); transform: scale(1.2); transition: all 0.4s; }
-    .card:hover .background { filter: blur(15px) brightness(0.7); transform: scale(1.1); }
-    .poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; z-index: 1; padding: 10px; transition: transform 0.4s; }
-    .card:hover .poster { transform: scale(1.05); }
-    .logo { position: absolute; top: 15px; left: 15px; width: 48px; height: 48px; z-index: 3; border-radius: 12px; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); object-fit: contain; padding: 6px; border: 1px solid rgba(255,255,255,0.1); }
-    .live-badge { position: absolute; top: 15px; right: 15px; z-index: 3; background: var(--accent); color: white; font-size: 0.75rem; font-weight: 800; padding: 4px 10px; border-radius: 20px; animation: pulse 2s infinite; }
-    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
-    .info { position: absolute; bottom: 0; left: 0; right: 0; padding: 30px 20px 20px 20px; z-index: 3; background: linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 60%, transparent 100%); transition: all 0.4s; }
-    .card:hover .info { padding-bottom: 25px; }
-    .title { font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 1.25rem; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
-    .desc { font-size: 0.85rem; color: var(--text-muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.5; }
-    
-    #player-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); backdrop-filter: blur(20px); z-index: 100; flex-direction: column; }
-    #close-btn { position: absolute; top: 30px; right: 40px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 12px 24px; border-radius: 30px; cursor: pointer; z-index: 101; font-weight: 600; }
-    #video-container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
-    video { width: 100%; max-width: 1400px; max-height: 85vh; border-radius: 16px; background: #000; box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
-    
-    #source-selector { display: none; position: absolute; z-index: 102; background: rgba(20,20,20,0.9); padding: 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); flex-direction: column; gap: 10px; }
-    .source-btn { background: rgba(255,255,255,0.1); color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background 0.2s; }
-    .source-btn:hover { background: var(--accent); }
-    
-    .loader { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 15px; }
-    .spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-  </style>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cg style='mix-blend-mode:screen'%3E%3Crect x='2' y='8' width='24' height='24' rx='6' fill='%23FF4FA3'/%3E%3Crect x='14' y='8' width='24' height='24' rx='6' fill='%235B86FF'/%3E%3C/g%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/sleeve.css">
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <style>
+    main{max-width:1600px;margin:0 auto;padding:var(--sp-5) var(--sp-5) var(--sp-8)}
+    .filterbar{display:flex;gap:var(--sp-4);margin-bottom:var(--sp-5);align-items:center;flex-wrap:wrap}
+    .chiprow{display:flex;gap:var(--sp-2);overflow-x:auto;flex:1;padding-bottom:4px;scrollbar-width:thin}
+    .chiprow::-webkit-scrollbar{height:4px}
+    .chiprow::-webkit-scrollbar-thumb{background:var(--stock-line-strong);border-radius:var(--r-full)}
+    .searchfield{min-width:220px;flex:0 0 260px}
+
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:var(--sp-5)}
+    .match{overflow:hidden}
+    .match .art{aspect-ratio:16/9;width:100%}
+    .match .art img.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+      filter:blur(18px) brightness(.55);transform:scale(1.2);transition:filter var(--motion-base),transform var(--motion-base)}
+    .match:hover .art img.bg{filter:blur(12px) brightness(.7);transform:scale(1.1)}
+    .match .art img.poster{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;
+      padding:var(--sp-3);z-index:1;transition:transform var(--motion-base)}
+    .match:hover .art img.poster{transform:scale(1.04)}
+    .match .art img.logo{position:absolute;top:var(--sp-3);left:var(--sp-3);width:40px;height:40px;z-index:3;
+      border-radius:var(--r-sm);background:rgba(18,16,38,.7);object-fit:contain;padding:5px;
+      border:1px solid var(--stock-line-strong)}
+    .match .art .badge{position:absolute;top:var(--sp-3);right:var(--sp-3);z-index:3}
+    .match .info{position:absolute;bottom:0;left:0;right:0;z-index:3;padding:var(--sp-6) var(--sp-4) var(--sp-4)}
+    .match .name{font-family:var(--font-display);font-weight:700;font-size:var(--size-lg);
+      line-height:1.2;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+      text-shadow:0 2px 6px rgba(0,0,0,.7)}
+    .match .desc{font-size:var(--size-sm);color:var(--text-secondary);margin-top:var(--sp-1);
+      display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.5}
+
+    #player-overlay{display:none;position:fixed;inset:0;background:rgba(9,8,20,.97);
+      backdrop-filter:blur(20px);z-index:100;flex-direction:column}
+    #close-btn{position:absolute;top:var(--sp-5);right:var(--sp-5);z-index:101}
+    #video-container{width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative}
+    video{width:100%;max-width:1400px;max-height:85vh;border-radius:var(--r-lg);background:#000;box-shadow:var(--el-2)}
+    .loader{position:absolute;display:flex;flex-direction:column;align-items:center;gap:var(--sp-4)}
+    .spinner{width:40px;height:40px;border:3px solid var(--stock-line-strong);border-top-color:var(--ink-pink);
+      border-radius:50%;animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
 </head>
 <body>
 
-  <header>
-    <div class="brand">Nuvio Live Sports</div>
-    <a href="/configure" style="background: var(--accent); color: white; padding: 10px 20px; border-radius: 30px; text-decoration: none; font-weight: 700; font-family: 'Outfit', sans-serif; transition: all 0.2s; box-shadow: 0 4px 15px var(--accent-glow);">Configure Plugin</a>
-  </header>
+<svg style="display:none" aria-hidden="true">
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16 16l4.5 4.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 7v6m0 4v.5"/><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M5 12.5l4.5 4.5L19 7"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></symbol>
+</svg>
 
-  <main>
-    <div style="display: flex; gap: 15px; margin-bottom: 30px; align-items: center; flex-wrap: wrap;">
-      <div class="tabs" id="tabs" style="flex: 1; margin-bottom: 0;">
-        <div style="color:var(--text-muted);">Loading catalogs...</div>
-      </div>
-      <input type="text" id="searchInput" placeholder="Search matches..." style="padding: 10px 20px; border-radius: 30px; background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: white; outline: none; min-width: 200px; font-family: 'Inter', sans-serif;">
+<header class="appbar">
+  <div class="brand">
+    <svg width="24" height="24" viewBox="0 0 40 40" aria-hidden="true">
+      <g style="mix-blend-mode:screen">
+        <rect x="2" y="8" width="24" height="24" rx="6" fill="#FF4FA3"/>
+        <rect x="14" y="8" width="24" height="24" rx="6" fill="#5B86FF"/>
+      </g>
+    </svg>
+    NUVIO SPORTS
+  </div>
+  <a href="/configure" class="btn btn--curate">Configure</a>
+</header>
+
+<main>
+  <div class="filterbar">
+    <div class="chiprow" id="tabs" role="tablist" aria-label="Sport categories">
+      <span class="t-secondary" style="padding:var(--sp-2) 0">Loading categories&hellip;</span>
     </div>
-    <div class="grid" id="grid"></div>
-  </main>
-
-  <div id="player-overlay">
-    <button id="close-btn" onclick="closePlayer()">Close Player</button>
-    
-    <div id="source-selector">
-      <h3 style="margin-top:0; color:white; font-family:'Outfit',sans-serif;">Select Stream Source</h3>
-      <div id="source-buttons" style="display:flex; flex-direction:column; gap:10px;"></div>
-    </div>
-
-    <div id="video-container">
-      <div class="loader" id="loader">
-        <div class="spinner"></div>
-        <div>Loading stream...</div>
-      </div>
-      <video id="video" controls autoplay></video>
+    <div class="field search searchfield">
+      <svg width="20" height="20"><use href="#i-search"/></svg>
+      <label class="label" for="searchInput" style="position:absolute;left:-9999px">Search matches</label>
+      <input type="text" id="searchInput" class="input" placeholder="Search matches, teams&hellip;">
     </div>
   </div>
+  <div class="grid" id="grid"></div>
+</main>
 
-  <script>
-    let hls = null;
-    let currentMatches = [];
+<div id="toastHost" aria-live="polite"></div>
 
-    async function loadTabs() {
-      try {
-        const res = await fetch('/manifest.json');
-        const manifest = await res.json();
-        const tabsContainer = document.getElementById('tabs');
-        tabsContainer.innerHTML = '';
-        
-        let firstCatalog = null;
-        let firstTab = null;
+<div id="player-overlay">
+  <button id="close-btn" class="btn btn--icon btn--secondary" aria-label="Close player" onclick="closePlayer()">
+    <svg width="20" height="20"><use href="#i-x"/></svg>
+  </button>
+  <div id="video-container">
+    <div class="loader" id="loader">
+      <div class="spinner"></div>
+      <span class="t-data">Loading stream&hellip;</span>
+    </div>
+    <video id="video" controls autoplay></video>
+  </div>
+</div>
 
-        manifest.catalogs.forEach((catalog) => {
-          // Skip non-TV catalogs or internal ones
-          if (catalog.type !== 'tv' || catalog.id === 'nuvio_sports_teams') return;
-          
-          if (!firstCatalog) firstCatalog = catalog.id;
-          
-          const tab = document.createElement('div');
-          tab.className = 'tab';
-          tab.innerText = catalog.name.replace('nuvio ', '').replace('Nuvio ', '');
-          tab.onclick = () => loadCatalog(catalog.id, tab);
-          tabsContainer.appendChild(tab);
-          
-          if (!firstTab) firstTab = tab;
+<div id="sheet-backdrop" class="sheet-backdrop" style="display:none" onclick="if(event.target===this) closeSourceSheet()">
+  <div class="sheet">
+    <div class="grabber"></div>
+    <h3 class="t-title" style="font-size:var(--size-xl);margin:0 0 var(--sp-4)">Select stream source</h3>
+    <div id="source-buttons" style="display:flex;flex-direction:column;gap:var(--sp-2)"></div>
+  </div>
+</div>
+
+<script>
+  let hls = null;
+  let currentMatches = [];
+
+  function toast(message, variant) {
+    const host = document.getElementById('toastHost');
+    const el = document.createElement('div');
+    el.className = 'toast' + (variant === 'danger' ? ' toast--danger' : ' toast--pink');
+    el.setAttribute('role', variant === 'danger' ? 'alert' : 'status');
+    const icon = variant === 'danger' ? 'i-alert' : 'i-check';
+    const color = variant === 'danger' ? 'var(--sem-danger)' : 'var(--ink-pink)';
+    el.innerHTML = `<svg width="18" height="18" style="color:${color};flex:none"><use href="#${icon}"/></svg><span>${message}</span>`;
+    host.appendChild(el);
+    setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 200ms'; setTimeout(() => el.remove(), 220); }, 3800);
+  }
+
+  function skeletonGrid(count) {
+    const grid = document.getElementById('grid');
+    grid.innerHTML = '';
+    for (let i = 0; i < count; i++) {
+      const el = document.createElement('div');
+      el.className = 'card match';
+      el.innerHTML = `
+        <div class="art skeleton" style="aspect-ratio:16/9"></div>
+        <div style="padding:var(--sp-3)">
+          <div class="skeleton" style="height:14px;width:70%;margin-bottom:8px"></div>
+          <div class="skeleton" style="height:11px;width:45%"></div>
+        </div>`;
+      grid.appendChild(el);
+    }
+  }
+
+  async function loadTabs() {
+    try {
+      const res = await fetch('/manifest.json');
+      const manifest = await res.json();
+      const tabsContainer = document.getElementById('tabs');
+      tabsContainer.innerHTML = '';
+
+      let firstCatalog = null;
+      let firstChip = null;
+
+      manifest.catalogs.forEach((catalog) => {
+        if (catalog.type !== 'tv' || catalog.id === 'nuvio_sports_teams') return;
+        if (!firstCatalog) firstCatalog = catalog.id;
+
+        const chip = document.createElement('button');
+        chip.className = 'chip';
+        chip.setAttribute('role', 'tab');
+        chip.setAttribute('aria-pressed', 'false');
+        chip.innerText = catalog.name.replace('nuvio ', '').replace('Nuvio ', '');
+        chip.onclick = () => loadCatalog(catalog.id, chip);
+        tabsContainer.appendChild(chip);
+
+        if (!firstChip) firstChip = chip;
+      });
+
+      if (firstCatalog && firstChip) loadCatalog(firstCatalog, firstChip);
+    } catch (err) {
+      console.error('Failed to load manifest', err);
+      document.getElementById('tabs').innerHTML = '<span style="color:var(--sem-danger)">Failed to load categories.</span>';
+      toast('Could not reach the addon server.', 'danger');
+    }
+  }
+
+  async function loadCatalog(catalogId, chipEl) {
+    if (chipEl) {
+      document.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', 'false'));
+      chipEl.setAttribute('aria-pressed', 'true');
+    }
+
+    document.getElementById('searchInput').value = '';
+    skeletonGrid(8);
+
+    try {
+      const res = await fetch(`/catalog/tv/${catalogId}.json`);
+      const data = await res.json();
+      currentMatches = data.metas || [];
+      renderGrid(currentMatches);
+    } catch (err) {
+      console.error(err);
+      document.getElementById('grid').innerHTML = '';
+      toast('Failed to load this catalog.', 'danger');
+    }
+  }
+
+  document.getElementById('searchInput').addEventListener('input', (e) => {
+    const query = e.target.value.toLowerCase();
+    const filtered = currentMatches.filter(meta =>
+      meta.name.toLowerCase().includes(query) ||
+      (meta.description && meta.description.toLowerCase().includes(query))
+    );
+    renderGrid(filtered);
+  });
+
+  function renderGrid(metas) {
+    const grid = document.getElementById('grid');
+    grid.innerHTML = '';
+
+    if (!metas || metas.length === 0) {
+      grid.innerHTML = `
+        <div class="empty">
+          <div class="title">No matches here right now.</div>
+          <div class="sub">Try another category, or check back closer to kickoff.</div>
+        </div>`;
+      return;
+    }
+
+    metas.forEach(meta => {
+      const card = document.createElement('div');
+      card.className = 'card card--interactive match';
+      card.onclick = () => fetchAndPlay(meta.id);
+
+      const isLive = meta.name.includes('🔴');
+      const cleanName = meta.name.replace('🔴 [LIVE] ', '');
+
+      card.innerHTML = `
+        <div class="art art--scrim">
+          <img class="bg" src="${meta.background}" onerror="this.style.display='none'" loading="lazy">
+          <img class="poster" src="${meta.poster}" onerror="this.src='https://raw.githubusercontent.com/stremio/stremio-addon-sdk/master/docs/api/images/stremio-logo.png'" loading="lazy">
+          ${meta.logo && meta.logo !== meta.poster ? `<img class="logo" src="${meta.logo}">` : ''}
+          ${isLive ? '<span class="badge badge--pink">Live</span>' : ''}
+          <div class="info">
+            <div class="name">${cleanName}</div>
+            <div class="desc">${(meta.description || '').replace(/\n/g, ' ')}</div>
+          </div>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+  }
+
+  async function fetchAndPlay(id) {
+    document.getElementById('player-overlay').style.display = 'flex';
+    document.getElementById('loader').style.display = 'flex';
+    closeSourceSheet();
+    const video = document.getElementById('video');
+    video.style.opacity = '0';
+
+    try {
+      const res = await fetch(`/stream/tv/${id}.json`);
+      const data = await res.json();
+
+      if (!data.streams || data.streams.length === 0) {
+        toast('No streams found for this match.', 'danger');
+        closePlayer();
+        return;
+      }
+
+      if (data.streams.length === 1) {
+        playStreamUrl(data.streams[0].url, data.streams[0]);
+      } else {
+        document.getElementById('loader').style.display = 'none';
+        const btnContainer = document.getElementById('source-buttons');
+        btnContainer.innerHTML = '';
+
+        data.streams.forEach(stream => {
+          const btn = document.createElement('button');
+          btn.className = 'btn btn--secondary btn--block';
+          btn.style.justifyContent = 'space-between';
+          btn.innerHTML = `${stream.title} <svg width="18" height="18"><use href="#i-chevron"/></svg>`;
+          btn.onclick = () => {
+            closeSourceSheet();
+            document.getElementById('loader').style.display = 'flex';
+            playStreamUrl(stream.url, stream);
+          };
+          btnContainer.appendChild(btn);
         });
 
-        if (firstCatalog && firstTab) {
-          loadCatalog(firstCatalog, firstTab);
-        }
-      } catch (err) {
-        console.error('Failed to load manifest', err);
-        document.getElementById('tabs').innerHTML = '<div style="color:var(--accent);">Failed to load catalogs. Ensure server is running.</div>';
+        document.getElementById('sheet-backdrop').style.display = 'flex';
       }
+    } catch (err) {
+      console.error(err);
+      toast('Error resolving stream.', 'danger');
+      closePlayer();
+    }
+  }
+
+  function closeSourceSheet() {
+    document.getElementById('sheet-backdrop').style.display = 'none';
+  }
+
+  function playStreamUrl(url, streamObj = null) {
+    if (streamObj && streamObj.externalUrl) {
+      window.open(streamObj.externalUrl, '_blank');
+      closePlayer();
+      return;
     }
 
-    async function loadCatalog(catalogId, tabElement) {
-      if (tabElement) {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        tabElement.classList.add('active');
-      }
+    const video = document.getElementById('video');
+    document.getElementById('loader').style.display = 'none';
+    video.style.opacity = '1';
 
-      const grid = document.getElementById('grid');
-      grid.innerHTML = '<div style="color:var(--text-muted);">Fetching matches...</div>';
-      document.getElementById('searchInput').value = ''; // Reset search on tab change
-      
-      try {
-        const res = await fetch(`/catalog/tv/${catalogId}.json`);
-        const data = await res.json();
-        currentMatches = data.metas || [];
-        renderGrid(currentMatches);
-      } catch (err) {
-        console.error(err);
-        grid.innerHTML = '<div style="color:var(--accent);">Failed to load catalog. Ensure the Nuvio plugin is running.</div>';
-      }
+    if (!url) {
+      toast('This stream cannot be played in the browser directly.', 'danger');
+      closePlayer();
+      return;
     }
 
-    document.getElementById('searchInput').addEventListener('input', (e) => {
-      const query = e.target.value.toLowerCase();
-      const filtered = currentMatches.filter(meta => 
-        meta.name.toLowerCase().includes(query) || 
-        (meta.description && meta.description.toLowerCase().includes(query))
-      );
-      renderGrid(filtered);
-    });
-
-    function renderGrid(metas) {
-      const grid = document.getElementById('grid');
-      grid.innerHTML = '';
-      
-      if (!metas || metas.length === 0) {
-        grid.innerHTML = '<div style="color:var(--text-muted);">No live matches found matching your criteria right now.</div>';
-        return;
-      }
-
-      metas.forEach(meta => {
-        const card = document.createElement('div');
-        card.className = 'card';
-        card.onclick = () => fetchAndPlay(meta.id);
-        
-        const isLive = meta.name.includes('🔴');
-        const cleanName = meta.name.replace('🔴 [LIVE] ', '');
-        
-        card.innerHTML = `
-          <div class="poster-container">
-            <img class="background" src="${meta.background}" onerror="this.style.display='none'" loading="lazy">
-            <img class="poster" src="${meta.poster}" onerror="this.src='https://raw.githubusercontent.com/stremio/stremio-addon-sdk/master/docs/api/images/stremio-logo.png'" loading="lazy">
-            ${meta.logo && meta.logo !== meta.poster ? `<img class="logo" src="${meta.logo}">` : ''}
-            ${isLive ? '<div class="live-badge">LIVE</div>' : ''}
-          </div>
-          <div class="info">
-            <div class="title">${cleanName}</div>
-            <div class="desc">${(meta.description || '').replace(/\n/g, '<br>')}</div>
-          </div>
-        `;
-        grid.appendChild(card);
-      });
+    if (Hls.isSupported()) {
+      if (hls) hls.destroy();
+      hls = new Hls({ maxBufferLength: 30 });
+      hls.loadSource(url);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(e => console.log(e)));
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = url;
+      video.play().catch(e => console.log(e));
     }
+  }
 
-    async function fetchAndPlay(id) {
-      document.getElementById('player-overlay').style.display = 'flex';
-      document.getElementById('loader').style.display = 'flex';
-      document.getElementById('source-selector').style.display = 'none';
-      const video = document.getElementById('video');
-      video.style.opacity = '0';
-      
-      try {
-        const res = await fetch(`/stream/tv/${id}.json`);
-        const data = await res.json();
-        
-        if (!data.streams || data.streams.length === 0) {
-          alert('No streams found for this match.');
-          closePlayer();
-          return;
-        }
+  function closePlayer() {
+    document.getElementById('player-overlay').style.display = 'none';
+    closeSourceSheet();
+    const video = document.getElementById('video');
+    video.pause();
+    video.src = '';
+    if (hls) { hls.destroy(); hls = null; }
+  }
 
-        if (data.streams.length === 1) {
-          playStreamUrl(data.streams[0].url, data.streams[0]);
-        } else {
-          document.getElementById('loader').style.display = 'none';
-          const selector = document.getElementById('source-selector');
-          const btnContainer = document.getElementById('source-buttons');
-          btnContainer.innerHTML = '';
-          
-          data.streams.forEach(stream => {
-            const btn = document.createElement('button');
-            btn.className = 'source-btn';
-            btn.innerText = stream.title;
-            btn.onclick = () => {
-              selector.style.display = 'none';
-              document.getElementById('loader').style.display = 'flex';
-              playStreamUrl(stream.url, stream);
-            };
-            btnContainer.appendChild(btn);
-          });
-          
-          selector.style.display = 'flex';
-        }
-      } catch (err) {
-        console.error(err);
-        alert('Error resolving stream.');
-        closePlayer();
-      }
-    }
-
-    function playStreamUrl(url, streamObj = null) {
-      if (streamObj && streamObj.externalUrl) {
-        window.open(streamObj.externalUrl, '_blank');
-        closePlayer();
-        return;
-      }
-      
-      const video = document.getElementById('video');
-      document.getElementById('loader').style.display = 'none';
-      video.style.opacity = '1';
-
-      if (!url) {
-        alert('This stream cannot be played in the browser directly.');
-        closePlayer();
-        return;
-      }
-
-      if (Hls.isSupported()) {
-        if (hls) hls.destroy();
-        hls = new Hls({ maxBufferLength: 30 });
-        hls.loadSource(url);
-        hls.attachMedia(video);
-        hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(e=>console.log(e)));
-      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = url;
-        video.play().catch(e=>console.log(e));
-      }
-    }
-
-    function closePlayer() {
-      document.getElementById('player-overlay').style.display = 'none';
-      document.getElementById('source-selector').style.display = 'none';
-      const video = document.getElementById('video');
-      video.pause();
-      video.src = '';
-      if (hls) {
-        hls.destroy();
-        hls = null;
-      }
-    }
-
-    loadTabs();
-  </script>
+  skeletonGrid(8);
+  loadTabs();
+</script>
 </body>
 </html>
