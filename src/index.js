@@ -337,10 +337,6 @@ app.use((req, res, next) => {
               s.url = `${currentBaseUrl}${s.url}`;
               modified = true;
             }
-            if (s.url && s.url.startsWith('/api/playwright-m3u8')) {
-              s.url = `${currentBaseUrl}${s.url}`;
-              modified = true;
-            }
           });
           
           if (modified) {
