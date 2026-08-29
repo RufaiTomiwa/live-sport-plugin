@@ -128,6 +128,12 @@ app.get('/api/manifest', async (req, res) => {
     });
     if (!fetchRes.ok) throw new Error(`HTTP ${fetchRes.status}`);
     out = await fetchRes.text();
+
+    // If the upstream server returned a "fake" 200 OK but it's not a valid M3U8, reject it
+    if (!out.includes('#EXT')) {
+      console.error('[ManifestProxy] Upstream returned non-m3u8 body for', targetUrl);
+      return res.status(404).send('Stream not found or expired');
+    }
   } catch (e) {
     console.log("[Manifest Proxy] impit failed, falling back to undici:", e.message);
     try {
@@ -142,6 +148,11 @@ app.get('/api/manifest', async (req, res) => {
         bodyTimeout: 10000
       });
       out = await fetchRes.body.text();
+      
+      if (!out.includes('#EXT')) {
+        console.error('[ManifestProxy] Upstream returned non-m3u8 body (undici) for', targetUrl);
+        return res.status(404).send('Stream not found or expired');
+      }
     } catch (err) {
       return res.status(502).send('Undici fallback failed: ' + err.message + ' | Impit Error: ' + e.message);
     }
@@ -323,10 +334,6 @@ app.use((req, res, next) => {
               modified = true;
             }
             if (s.url && s.url.startsWith('/api/hls')) {
-              s.url = `${currentBaseUrl}${s.url}`;
-              modified = true;
-            }
-            if (s.url && s.url.startsWith('/api/playwright-m3u8')) {
               s.url = `${currentBaseUrl}${s.url}`;
               modified = true;
             }

@@ -18,11 +18,11 @@ async function handleStream(type, id, config) {
 
   const streams = [];
 
-  const SOURCE_PRIORITY = { admin: 1, echo: 1, golf: 1, delta: 1, 'watchfooty': 2, 'cdnlive': 3, 'streamsports99': 4, 'streamic': 5, 'strims24': 7, 'streamfree': 8, 'timstreams': 9, 'ntv': 11, 'sportyhunter': 12, 'streamsports': 13, 'iptv-org': 14, 'embedindia': 15 };
+  const SOURCE_PRIORITY = { admin: 1, echo: 1, golf: 1, delta: 1, 'watchfooty': 2, 'cdnlive': 3, 'streamsports99': 4, 'streamic': 5, 'strims24': 7, 'streamfree': 8, 'timstreams': 9, 'sportyhunter': 12, 'streamsports': 13, 'iptv-org': 14, 'embedindia': 15 };
   const sortedSources = [...match.sources].sort((a, b) => {
     // If a source isn't in the list, but it's not one of our known fallback providers, 
     // it's likely a new Streamed.pk source. Give it priority 1.5 so it stays near the top.
-    const getPriority = (src) => SOURCE_PRIORITY[src] ?? (['watchfooty', 'cdnlive', 'streamsports99', 'streamic', 'strims24', 'streamfree', 'timstreams', 'ntv', 'sportyhunter', 'streamsports', 'iptv-org'].includes(src) ? 99 : 1.5);
+    const getPriority = (src) => SOURCE_PRIORITY[src] ?? (['watchfooty', 'cdnlive', 'streamsports99', 'streamic', 'strims24', 'streamfree', 'timstreams', 'sportyhunter', 'streamsports', 'iptv-org'].includes(src) ? 99 : 1.5);
     const pa = getPriority(a.source);
     const pb = getPriority(b.source);
     if (pa !== pb) return pa - pb;
@@ -35,7 +35,7 @@ async function handleStream(type, id, config) {
   let activeSources = sortedSources;
   if (config && typeof config.sources === 'string' && config.sources !== 'none') {
     const enabled = config.sources.split(',');
-    const KNOWN_FALLBACKS = ['watchfooty', 'cdnlive', 'streamsports99', 'streamic', 'strims24', 'streamfree', 'timstreams', 'ntv', 'sportyhunter', 'streamsports', 'iptv-org', 'embedindia', 'embedst', 'BeinArabic', 'streamedpk'];
+    const KNOWN_FALLBACKS = ['watchfooty', 'cdnlive', 'streamsports99', 'streamic', 'strims24', 'streamfree', 'timstreams', 'sportyhunter', 'streamsports', 'iptv-org', 'embedindia', 'embedst', 'BeinArabic', 'streamedpk'];
     activeSources = sortedSources.filter(src => {
       if (src.source.startsWith('yaml_')) return true;
       const isFallback = KNOWN_FALLBACKS.includes(src.source);
@@ -45,7 +45,7 @@ async function handleStream(type, id, config) {
       return false;
     });
   } else {
-    const KNOWN_FALLBACKS = ['watchfooty', 'cdnlive', 'streamsports99', 'streamic', 'strims24', 'streamfree', 'timstreams', 'ntv', 'sportyhunter', 'streamsports', 'iptv-org', 'embedst', 'BeinArabic', 'streamedpk'];
+    const KNOWN_FALLBACKS = ['watchfooty', 'cdnlive', 'streamsports99', 'streamic', 'strims24', 'streamfree', 'timstreams', 'sportyhunter', 'streamsports', 'iptv-org', 'embedst', 'BeinArabic', 'streamedpk'];
     activeSources = sortedSources.filter(src => {
       if (src.source.startsWith('yaml_')) return true;
       return KNOWN_FALLBACKS.includes(src.source);
@@ -63,9 +63,6 @@ async function handleStream(type, id, config) {
         resStreams = await provider.resolveStream(src.id, sfCategory, match.title);
       } else if (sourceName === 'timstreams') {
         const provider = container.resolve('timStreamsProvider');
-        resStreams = await provider.resolveStream(src.id, match.category, match.title);
-      } else if (sourceName === 'ntv') {
-        const provider = container.resolve('ntvProvider');
         resStreams = await provider.resolveStream(src.id, match.category, match.title);
       } else if (sourceName === 'sportyhunter') {
         const provider = container.resolve('sportyHunterProvider');
@@ -177,7 +174,7 @@ async function handleStream(type, id, config) {
   
   const niceNames = {
     streamfree: 'StreamFree', timstreams: 'TimStreams',
-    ntv: 'NTV', sportyhunter: 'SportyHunter', streamsports: 'StreamSports',
+    sportyhunter: 'SportyHunter', streamsports: 'StreamSports',
     'iptv-org': 'Direct IPTV', 'streamsports99': 'StreamSports99',
     'streamic': 'Streamic', 'strims24': 'Strims24',
     'embedindia': 'EmbedIndia', 'embedst': 'Embed.st', 'streamedpk': 'Streamed.pk'
@@ -197,7 +194,6 @@ async function handleStream(type, id, config) {
     let providerName = niceNames[s._source] || niceNames[Object.keys(niceNames).find(k => s.title && s.title.toLowerCase().includes(k))] || 'Streamed.pk';
     
     if (s.title && s.title.toLowerCase().includes('timstreams')) providerName = 'TimStreams';
-    else if (s.title && s.title.toLowerCase().includes('ntv')) providerName = 'NTV';
     else if (s.title && s.title.toLowerCase().includes('sporty')) providerName = 'SportyHunter';
     else if (s.title && s.title.toLowerCase().includes('streamfree')) providerName = 'StreamFree';
     else if (s.title && s.title.toLowerCase().includes('watchfooty')) providerName = 'WatchFooty';
@@ -270,6 +266,111 @@ async function handleStream(type, id, config) {
       s.title = `📺 ${channelName || '24/7 Live Network'}\n⚙️ Quality: ${quality}`;
     }
   });
+
+// --- Stream Health Verification ---
+  const { Impit } = require('impit');
+  const impitClient = new Impit();
+
+  const checkedStreams = await Promise.all(streams.map(async (s) => {
+    // We only pre-flight check direct streams (m3u8 urls). Web player links are kept blindly.
+    if (!s.url || s.url.includes('/watch?')) return s;
+
+    let targetUrl = s.url;
+    let referer = '';
+    // If the stream is routed through our manifest proxy, we extract the true upstream URL to ping
+    if (targetUrl.includes('/api/manifest')) {
+      try {
+        const urlObj = new URL('http://localhost' + targetUrl);
+        if (urlObj.searchParams.has('url')) {
+          targetUrl = urlObj.searchParams.get('url');
+        }
+        if (urlObj.searchParams.has('referer')) {
+          referer = urlObj.searchParams.get('referer');
+        }
+      } catch (e) {}
+    }
+
+    try {
+      const abortController = new AbortController();
+      const timeout = setTimeout(() => abortController.abort(), 2000); // 2 second strict timeout
+
+      if (!referer && s.behaviorHints && s.behaviorHints.proxyHeaders && s.behaviorHints.proxyHeaders.request) {
+        referer = s.behaviorHints.proxyHeaders.request.Referer || '';
+      }
+
+      let res;
+      let bodySample = '';
+
+      try {
+        res = await impitClient.fetch(targetUrl, {
+          method: 'GET',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
+            'Referer': referer
+          },
+          signal: abortController.signal
+        });
+        bodySample = await res.text();
+      } catch (impitErr) {
+        // Fallback to undici
+        try {
+          const { request } = require('undici');
+          const uRes = await request(targetUrl, {
+            method: 'GET',
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
+              'Referer': referer
+            },
+            headersTimeout: 3000,
+            bodyTimeout: 3000,
+            signal: abortController.signal
+          });
+          res = { status: uRes.statusCode };
+          bodySample = await uRes.body.text();
+        } catch (undiciErr) {
+          clearTimeout(timeout);
+          console.log(`[Filter] Dropped timeout/error stream: ${targetUrl} - ${impitErr.message}`);
+          return null;
+        }
+      }
+
+      clearTimeout(timeout);
+
+      // Edge servers return 404 for dead streams, 403 for IP-locked/expired tokens, 502 for upstream failures
+      if (res.status === 404 || res.status === 403 || res.status >= 500) {
+        console.log(`[Filter] Dropped dead stream (${res.status}): ${targetUrl}`);
+        return null;
+      }
+      
+      // Some CDNs (like lb8.strmd.st) return 200 OK with "Not found" when token is expired.
+      // If it doesn't contain #EXT, it's not a valid m3u8 playlist.
+      if (!bodySample.includes('#EXT')) {
+        console.log(`[Filter] Dropped fake 200 stream (Invalid M3U8 body): ${targetUrl}`);
+        return null;
+      }
+
+      // Parse Master Playlist quality, framerate (FPS), and bitrate in real-time
+      const parsedQuality = m3u8Parser.parseManifestText(bodySample);
+      if (parsedQuality) {
+        if (parsedQuality.qualityTag) s.quality = parsedQuality.qualityTag;
+        if (parsedQuality.resolution) s.resolution = parsedQuality.resolution;
+        if (parsedQuality.bitrateTag) s.bitrate = parsedQuality.bitrateTag;
+        
+        if (s.title && s.title.includes('📺 Quality:')) {
+          s.title = s.title.replace(/📺 Quality: [^\n]+/, `📺 Quality: ${parsedQuality.fullQuality}`);
+        }
+      }
+      
+      return s;
+    } catch (err) {
+      console.log(`[Filter] Dropped timeout/error stream: ${targetUrl} - ${err.message}`);
+      return null;
+    }
+  }));
+
+  // Re-assign filtered array
+  streams.length = 0;
+  streams.push(...checkedStreams.filter(Boolean));
 
   // Sort streams: Direct streams first, then by score descending
   streams.sort((a, b) => {

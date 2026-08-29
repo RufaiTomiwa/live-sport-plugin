@@ -70,12 +70,16 @@ class EmbedStProvider extends BaseProvider {
                 const iframeReferer = new URL(iframeSrc).origin + '/';
                 
                 if (iframeSrc.includes('embedindia') && this.embedIndiaProvider) {
-                    const indiaStreams = await this.embedIndiaProvider.resolveStream(iframeSrc, matchCategory, matchTitle, { referer: iframeReferer });
-                    if (indiaStreams.length > 0) {
-                        streams.push(...indiaStreams);
-                        break;
-                    }
-                }
+                      const indiaStreams = await this.embedIndiaProvider.resolveStream(iframeSrc, matchCategory, matchTitle, { referer: iframeReferer });
+                      if (indiaStreams.length > 0) {
+                          indiaStreams.forEach(s => {
+                              s.name = this.name;
+                              s.title = s.title.replace('EmbedIndia', this.name);
+                          });
+                          streams.push(...indiaStreams);
+                          break;
+                      }
+                  }
                 
                 streams.push(new StreamEntity({
                   name: 'EmbedSt',

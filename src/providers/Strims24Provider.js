@@ -165,6 +165,14 @@ class Strims24Provider extends BaseProvider {
     }
   }
 
+  async fetchViewers() {
+    try {
+      const res = await this.fetchData.fire(`${this.baseUrl}/api/v1/viewers`);
+      if (res && res.status === 200) return await res.json();
+    } catch (e) {}
+    return {};
+  }
+
   async getMatches() {
     const matches = [];
     try {
@@ -191,12 +199,14 @@ class Strims24Provider extends BaseProvider {
         const haveChannels = Object.keys(userChannels).length > 0;
         const now = Date.now();
         const FOUR_HOURS = 4 * 60 * 60 * 1000;
+        const processedFsIds = new Set();
 
         for (const e of flashRaw) {
           const hasChannelMatch = haveChannels && e.tvChannelIds.some(id => userChannels[id]);
           const isManual = manualFsIds.has(e.id);
           
           if (hasChannelMatch || isManual) {
+            processedFsIds.add(e.id);
             const title = e.eventTitle || ((e.homeTeam && e.awayTeam) ? `${e.homeTeam} - ${e.awayTeam}` : (e.homeTeam || e.tournamentName));
             
             const kickoff = e.startTime ? e.startTime * 1000 : now;
@@ -216,6 +226,20 @@ class Strims24Provider extends BaseProvider {
           }
         }
 
+        // Fallback for manual FS matches that were not in FlashScore feed
+        for (const fsId of manualFsIds) {
+          if (!processedFsIds.has(fsId)) {
+            matches.push(new MatchEntity({
+              id: `FS:${fsId}`,
+              title: `Live Match (${fsId})`,
+              category: this.normalizeCategory(sport),
+              date: now.toString(),
+              popular: '1',
+              sources: [{ source: 'strims24', id: `FS:${fsId}`, original_sport: sport }]
+            }));
+          }
+        }
+
         for (const it of customItems) {
            const kickoff = it.start_ts ? it.start_ts * 1000 : now;
            const isLive = kickoff <= now && kickoff > now - FOUR_HOURS;
@@ -230,7 +254,7 @@ class Strims24Provider extends BaseProvider {
         }
       }
 
-      // Add standalone 24/7 channels as network matches
+      // Add standalone 24/7 channels as network matches if available
       const addedChannelIds = new Set();
       for (const key of Object.keys(userChannels)) {
         const ch = userChannels[key];
@@ -245,7 +269,7 @@ class Strims24Provider extends BaseProvider {
           title: ch.name || `Channel ${ch.id}`,
           category: 'networks',
           date: Date.now().toString(),
-          popular: '1', // 24/7 networks are always live
+          popular: '1',
           sources: [{ source: 'strims24', id: `CH:${ch.id}`, original_sport: 'network' }]
         }));
       }
@@ -256,9 +280,101 @@ class Strims24Provider extends BaseProvider {
     return matches;
   }
 
+  async resolveSingleStream(url, name, matchTitle, viewers = 0) {
+    let embedUrl = url;
+    if (/^[a-f0-9]{32}$/i.test(embedUrl)) {
+       embedUrl = `https://iplayer.is/echo/${embedUrl}`;
+    } else if (!/^https?:\/\//i.test(embedUrl)) {
+       embedUrl = `https://iplayer.is${embedUrl.startsWith('/') ? '' : '/'}${embedUrl}`;
+    }
+
+    let directUrl = null;
+    let proxyReqHeaders = {
+       'Referer': 'https://iplayer.is/'
+    };
+    
+    let premiumSlug = null;
+    const premiumUrlMatch = embedUrl.match(/\/premium\/([^?&]+)/);
+    if (premiumUrlMatch) {
+        premiumSlug = premiumUrlMatch[1];
+    } else {
+        const socialMatch = embedUrl.match(/\/social\/([a-z0-9-]+)/i);
+        if (socialMatch) premiumSlug = socialMatch[1].replace(/-/g, '');
+    }
+
+    if (!premiumSlug) {
+        try {
+            const embedRes = await this.proxyFetch(embedUrl, { headers: { 'Referer': 'https://strims24.pl/' } });
+            if (embedRes && embedRes.ok) {
+                const embedHtml = await embedRes.text();
+                let premiumMatch = embedHtml.match(/src=["']\/premium\/([^"']+)["']/);
+                if (!premiumMatch) {
+                    premiumMatch = embedHtml.match(/src=["']https:\/\/iplayer\.is\/premium\/([^"']+)["']/);
+                }
+                
+                if (premiumMatch) {
+                    premiumSlug = premiumMatch[1];
+                } else {
+                    const streamUrlMatch = embedHtml.match(/STREAM_URL\s*=\s*["']([^"']+)["']/i);
+                    if (streamUrlMatch) {
+                        directUrl = streamUrlMatch[1].replace(/\\\//g, '/');
+                    } else {
+                        const m3u8Match = embedHtml.match(/(https?:\/\/[^"']+\.m3u8[^"']*)/i);
+                        if (m3u8Match) {
+                            directUrl = m3u8Match[1];
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn(`[${this.name}] Failed to extract stream from ${embedUrl}: ${e.message}`);
+        }
+    }
+
+    if (premiumSlug) {
+        try {
+            const psignRes = await this.proxyFetch(`https://iplayer.is/psign/${encodeURIComponent(premiumSlug)}`, {
+                headers: { 'Referer': `https://iplayer.is/premium/${premiumSlug}`, 'Accept': 'application/json' }
+            });
+            if (psignRes && psignRes.ok) {
+                const psignData = await psignRes.json();
+                if (psignData && psignData.url) {
+                    directUrl = psignData.url;
+                    proxyReqHeaders['Referer'] = 'https://iplayer.is/';
+                }
+            }
+        } catch (e) {
+            console.warn(`[${this.name}] Failed to fetch psign for slug ${premiumSlug}: ${e.message}`);
+        }
+    }
+
+    const viewersText = viewers > 0 ? ` | 👥 ${viewers} Viewers` : '';
+    const fullTitle = `${name}${viewersText}`;
+
+    if (directUrl) {
+        const proxyUrl = `${BASE_URL}/api/manifest?url=${encodeURIComponent(directUrl)}&referer=${encodeURIComponent(proxyReqHeaders['Referer'] || 'https://iplayer.is/')}&origin=${encodeURIComponent('https://iplayer.is')}`;
+        return new StreamEntity({
+          name: `Strims24`,
+          title: `[Direct] ${fullTitle}`,
+          url: proxyUrl,
+          behaviorHints: {
+            notWebReady: true,
+            proxyHeaders: {
+              request: proxyReqHeaders
+            }
+          }
+        });
+    }
+
+    return new StreamEntity({
+      name: `Strims24`,
+      title: fullTitle,
+      externalUrl: `/watch?url=${encodeURIComponent(embedUrl)}&title=${encodeURIComponent(matchTitle || 'Live Event')}`
+    });
+  }
+
   async resolveStream(sourceId, matchCategory, matchTitle) {
     try {
-          const streams = [];
       const isFs = sourceId.startsWith('FS:');
       const isCh = sourceId.startsWith('CH:');
       const cleanId = sourceId.replace(/^(FS:|CUST:|CH:)/, '');
@@ -269,7 +385,13 @@ class Strims24Provider extends BaseProvider {
           if (dbDetailRes && dbDetailRes.status === 200) dbDetail = await dbDetailRes.json();
       }
 
-      const userChannels = await this.fetchStrimsChannels();
+      const [userChannels, viewersMap] = await Promise.all([
+        this.fetchStrimsChannels(),
+        this.fetchViewers()
+      ]);
+
+      const haveChannels = Object.keys(userChannels).length > 0;
+      const matchViewers = viewersMap[cleanId] || viewersMap[sourceId] || 0;
 
       const channels = [];
       const disabledIds = new Set();
@@ -293,11 +415,14 @@ class Strims24Provider extends BaseProvider {
         if (ch.enabled === false) continue;
         const sId = String(ch.id);
         const resolved = userChannels[sId] || userChannels[this.tviKey(sId.replace(/^TVI/, ''))];
-        if (!resolved) continue;
-        channels.push({ id: resolved.id, name: resolved.name || ch.name });
+        if (resolved) {
+          channels.push({ id: resolved.id, name: resolved.name || ch.name });
+        } else if (isCh || ch.id) {
+          channels.push({ id: ch.id, name: ch.name || `Channel ${ch.id}` });
+        }
       }
 
-      if (isFs) {
+      if (isFs && haveChannels) {
         const feedTviIds = await this.fetchMatchTvChannelIds(cleanId);
         for (const tviId of feedTviIds) {
           const ch = userChannels[tviId];
@@ -315,180 +440,24 @@ class Strims24Provider extends BaseProvider {
         return true;
       });
 
+      const streamPromises = [];
+
       for (const ch of uniqueChannels) {
         const embedUrl = `https://iplayer.is/player/lean/${encodeURIComponent(ch.id)}`;
-        let directUrl = null;
-        let proxyReqHeaders = {
-             'Referer': 'https://strims24.pl/'
-        };
-        
-        let premiumSlug = null;
-        const premiumUrlMatch = embedUrl.match(/\/premium\/([^?&]+)/);
-        if (premiumUrlMatch) {
-            premiumSlug = premiumUrlMatch[1];
-        } else {
-            const socialMatch = embedUrl.match(/\/social\/([a-z0-9-]+)/i);
-            if (socialMatch) premiumSlug = socialMatch[1].replace(/-/g, '');
-        }
-
-        if (!premiumSlug) {
-            try {
-                const embedRes = await this.proxyFetch(embedUrl, { headers: { 'Referer': 'https://strims24.pl/' } });
-                if (embedRes.ok) {
-                    const embedHtml = await embedRes.text();
-                    let premiumMatch = embedHtml.match(/src=["']\/premium\/([^"']+)["']/);
-                    if (!premiumMatch) {
-                        premiumMatch = embedHtml.match(/src=["']https:\/\/iplayer\.is\/premium\/([^"']+)["']/);
-                    }
-                    
-                    if (premiumMatch) {
-                        premiumSlug = premiumMatch[1];
-                    } else {
-                        const streamUrlMatch = embedHtml.match(/STREAM_URL\s*=\s*["']([^"']+)["']/i);
-                        if (streamUrlMatch) {
-                            directUrl = streamUrlMatch[1].replace(/\\\//g, '/');
-                        } else {
-                            const m3u8Match = embedHtml.match(/(https?:\/\/[^"']+\.m3u8[^"']*)/i);
-                            if (m3u8Match) {
-                                directUrl = m3u8Match[1];
-                            }
-                        }
-                    }
-                }
-            } catch (e) {
-                console.error(`[${this.name}] Failed to extract direct stream for channel ${ch.id}`, e.message);
-            }
-        }
-
-        if (premiumSlug) {
-            try {
-                const psignRes = await this.proxyFetch(`https://iplayer.is/psign/${encodeURIComponent(premiumSlug)}`, {
-                    headers: { 'Referer': `https://iplayer.is/premium/${premiumSlug}`, 'Accept': 'application/json' }
-                });
-                const psignData = await psignRes.json();
-                if (psignData && psignData.url) {
-                    directUrl = psignData.url;
-                    proxyReqHeaders['Referer'] = 'https://iplayer.is/';
-                }
-            } catch (e) {
-                console.error(`[${this.name}] Failed to fetch psign for slug ${premiumSlug}`, e.message);
-            }
-        }
-
-        if (directUrl) {
-            streams.push(new StreamEntity({
-              name: `Strims24 Channel`,
-              title: `[Direct] ${ch.name || `Channel ${ch.id}`}`,
-              url: directUrl,
-              behaviorHints: {
-                notWebReady: true,
-                proxyHeaders: {
-                  request: proxyReqHeaders
-                }
-              }
-            }));
-            continue;
-        }
-
-        streams.push(new StreamEntity({
-          name: `Strims24 Channel`,
-          title: ch.name || `Channel ${ch.id}`,
-          externalUrl: `/watch?url=${encodeURIComponent(embedUrl)}&title=${encodeURIComponent(matchTitle || 'Live Event')}`
-        }));
+        const v = viewersMap[String(ch.id)] || matchViewers || 0;
+        streamPromises.push(this.resolveSingleStream(embedUrl, ch.name || `Channel ${ch.id}`, matchTitle, v));
       }
 
       if (dbDetail && Array.isArray(dbDetail.custom_urls)) {
         for (const cu of dbDetail.custom_urls) {
           if (cu.enabled === false) continue;
-          let embedUrl = cu.url;
-          if (/^[a-f0-9]{32}$/i.test(embedUrl)) {
-             embedUrl = `https://iplayer.is/echo/${embedUrl}`;
-          } else if (!/^https?:\/\//i.test(embedUrl)) {
-             embedUrl = `https://iplayer.is${embedUrl.startsWith('/') ? '' : '/'}${embedUrl}`;
-          }
-
-          let directUrl = null;
-          let proxyReqHeaders = {
-             'Referer': 'https://strims24.pl/'
-          };
-          
-          let premiumSlug = null;
-          const premiumUrlMatch = embedUrl.match(/\/premium\/([^?&]+)/);
-          if (premiumUrlMatch) {
-              premiumSlug = premiumUrlMatch[1];
-          } else {
-              const socialMatch = embedUrl.match(/\/social\/([a-z0-9-]+)/i);
-              if (socialMatch) premiumSlug = socialMatch[1].replace(/-/g, '');
-          }
-
-          if (!premiumSlug) {
-              try {
-                  const embedRes = await this.proxyFetch(embedUrl, { headers: { 'Referer': 'https://strims24.pl/' } });
-                  if (embedRes.ok) {
-                      const embedHtml = await embedRes.text();
-                      let premiumMatch = embedHtml.match(/src=["']\/premium\/([^"']+)["']/);
-                      if (!premiumMatch) {
-                          premiumMatch = embedHtml.match(/src=["']https:\/\/iplayer\.is\/premium\/([^"']+)["']/);
-                      }
-                      
-                      if (premiumMatch) {
-                          premiumSlug = premiumMatch[1];
-                      } else {
-                          const streamUrlMatch = embedHtml.match(/STREAM_URL\s*=\s*["']([^"']+)["']/i);
-                          if (streamUrlMatch) {
-                              directUrl = streamUrlMatch[1].replace(/\\\//g, '/');
-                          } else {
-                              const m3u8Match = embedHtml.match(/(https?:\/\/[^"']+\.m3u8[^"']*)/i);
-                              if (m3u8Match) {
-                                  directUrl = m3u8Match[1];
-                              }
-                          }
-                      }
-                  }
-              } catch (e) {
-                  console.error(`[${this.name}] Failed to extract direct stream for custom ${cu.id}`, e.message);
-              }
-          }
-
-          if (premiumSlug) {
-              try {
-                  const psignRes = await this.proxyFetch(`https://iplayer.is/psign/${encodeURIComponent(premiumSlug)}`, {
-                      headers: { 'Referer': `https://iplayer.is/premium/${premiumSlug}`, 'Accept': 'application/json' }
-                  });
-                  const psignData = await psignRes.json();
-                  if (psignData && psignData.url) {
-                      directUrl = psignData.url;
-                      proxyReqHeaders['Referer'] = 'https://iplayer.is/';
-                  }
-              } catch (e) {
-                  console.error(`[${this.name}] Failed to fetch psign for slug ${premiumSlug}`, e.message);
-              }
-          }
-
-          if (directUrl) {
-              streams.push(new StreamEntity({
-                 name: `Strims24 Custom`,
-                 title: `[Direct] ${cu.name || `Custom ${cu.id}`}`,
-                 url: directUrl,
-                 behaviorHints: {
-                   notWebReady: true,
-                   proxyHeaders: {
-                     request: proxyReqHeaders
-                   }
-                 }
-              }));
-              continue;
-          }
-
-          streams.push(new StreamEntity({
-             name: `Strims24 Custom`,
-             title: cu.name || `Custom ${cu.id}`,
-             externalUrl: `/watch?url=${encodeURIComponent(embedUrl)}&title=${encodeURIComponent(matchTitle || 'Live Event')}`
-          }));
+          const v = cu.viewers || viewersMap[cu.id] || matchViewers || 0;
+          streamPromises.push(this.resolveSingleStream(cu.url, cu.name || `Custom ${cu.id}`, matchTitle, v));
         }
       }
 
-      return streams;
+      const resolvedStreams = await Promise.all(streamPromises);
+      return resolvedStreams.filter(Boolean);
     } catch (e) {
       console.error(`[${this.name}] resolveStream failed for ${sourceId}:`, e.message);
       return [];

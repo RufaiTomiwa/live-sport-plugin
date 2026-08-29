@@ -12,7 +12,8 @@ class StreamFreeProvider extends BaseProvider {
       this.name + '_fetchMain',
       async () => {
         const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36' };
-        const res = await fetch(this.apiUrl, { headers, signal: AbortSignal.timeout(7000) });
+        const { request } = require('undici');
+        const res = await request(this.apiUrl, { headers, headersTimeout: 7000, bodyTimeout: 7000 });
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         return await res.json();
       }
@@ -21,7 +22,8 @@ class StreamFreeProvider extends BaseProvider {
       this.name + '_fetchEmbed',
       async (url) => {
         const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36' };
-        const res = await fetch(url, { headers, signal: AbortSignal.timeout(10000) });
+        const { request } = require('undici');
+        const res = await request(url, { headers, headersTimeout: 10000, bodyTimeout: 10000 });
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         return await res.text();
       }
@@ -30,7 +32,8 @@ class StreamFreeProvider extends BaseProvider {
       this.name + '_fetchStreamKey',
       async (url) => {
         const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36' };
-        const res = await fetch(url, { headers, signal: AbortSignal.timeout(10000) });
+        const { request } = require('undici');
+        const res = await request(url, { headers, headersTimeout: 10000, bodyTimeout: 10000 });
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         return await res.json();
       }
@@ -86,7 +89,8 @@ class StreamFreeProvider extends BaseProvider {
       const statusUrl = `https://streamfree.top/api/stream-status/${sourceId}`;
       let availableQualities = {};
       try {
-        const statusRes = await fetch(statusUrl, {
+        const { request } = require('undici');
+        const statusRes = await request(statusUrl, {
            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36' }
         });
         if (statusRes.ok) {
