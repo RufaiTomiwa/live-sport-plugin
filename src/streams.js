@@ -280,12 +280,16 @@ async function handleStream(type, id, config) {
     if (!s.url || s.url.includes('/watch?')) return s;
 
     let targetUrl = s.url;
+    let referer = '';
     // If the stream is routed through our manifest proxy, we extract the true upstream URL to ping
     if (targetUrl.includes('/api/manifest')) {
       try {
         const urlObj = new URL('http://localhost' + targetUrl);
         if (urlObj.searchParams.has('url')) {
           targetUrl = urlObj.searchParams.get('url');
+        }
+        if (urlObj.searchParams.has('referer')) {
+          referer = urlObj.searchParams.get('referer');
         }
       } catch (e) {}
     }
@@ -294,8 +298,7 @@ async function handleStream(type, id, config) {
       const abortController = new AbortController();
       const timeout = setTimeout(() => abortController.abort(), 2000); // 2 second strict timeout
 
-      let referer = '';
-      if (s.behaviorHints && s.behaviorHints.proxyHeaders && s.behaviorHints.proxyHeaders.request) {
+      if (!referer && s.behaviorHints && s.behaviorHints.proxyHeaders && s.behaviorHints.proxyHeaders.request) {
         referer = s.behaviorHints.proxyHeaders.request.Referer || '';
       }
 
