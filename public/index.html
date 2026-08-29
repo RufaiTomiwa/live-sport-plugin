@@ -156,8 +156,8 @@
       z-index:100;flex-direction:column}
     #close-btn{position:absolute;top:calc(var(--sp-4) + env(safe-area-inset-top));right:var(--sp-4);z-index:101}
     #video-container{width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative}
-    video{width:100%;height:100%;max-width:1600px;background:#000}
-    @media (min-width:900px){video{max-height:88vh;border-radius:var(--r-lg)}}
+    video,#webplayer{width:100%;height:100%;max-width:1600px;background:#000;border:0}
+    @media (min-width:900px){video,#webplayer{max-height:88vh;border-radius:var(--r-lg)}}
     .loader{position:absolute;display:flex;flex-direction:column;align-items:center;gap:var(--sp-4)}
     .spinner{width:40px;height:40px;border:3px solid var(--stock-line-strong);border-top-color:var(--ink-pink);
       border-radius:50%;animation:spin 1s linear infinite}
@@ -231,7 +231,7 @@
 </div>
 
 <div id="player-overlay">
-  <button id="close-btn" class="btn btn--icon btn--secondary" aria-label="Close player" onclick="closePlayer()">
+  <button id="close-btn" class="btn btn--icon btn--secondary" aria-label="Close player" onclick="handleCloseFromPlayer()">
     <svg width="20" height="20"><use href="#i-x"/></svg>
   </button>
   <div id="video-container">
@@ -240,18 +240,24 @@
       <span class="t-data">Loading stream&hellip;</span>
     </div>
     <video id="video" controls autoplay playsinline webkit-playsinline muted></video>
+    <iframe id="webplayer" style="display:none" allow="autoplay; encrypted-media; fullscreen; picture-in-picture"></iframe>
     <button class="btn btn--sm unmute-hint" id="unmuteHint" onclick="unmuteVideo()">
       <svg width="16" height="16"><use href="#i-volume"/></svg> Tap to unmute
     </button>
   </div>
 </div>
 
-<div id="sheet-backdrop" class="sheet-backdrop" style="display:none" onclick="if(event.target===this) closeSourceSheet()">
+<div id="sheet-backdrop" class="sheet-backdrop" style="display:none" onclick="if(event.target===this) cancelFromSourceSheet()">
   <div class="sheet source-sheet">
     <div class="grabber"></div>
     <div class="sheet-head">
       <h3 class="t-title" style="font-size:var(--size-xl);margin:0">Select a source</h3>
-      <span class="t-data" id="sourceCount"></span>
+      <div style="display:flex;align-items:center;gap:var(--sp-3)">
+        <span class="t-data" id="sourceCount"></span>
+        <button class="btn btn--icon btn--ghost btn--sm" aria-label="Cancel" onclick="cancelFromSourceSheet()">
+          <svg width="18" height="18"><use href="#i-x"/></svg>
+        </button>
+      </div>
     </div>
     <div class="source-filters" id="sourceFilters"></div>
     <div class="sheet-scroll" id="sourceList"></div>
@@ -365,7 +371,7 @@
     const isLive = isLiveMeta(meta);
     const { league, category } = parseMeta(meta.description);
     return `
-      <div class="rcard" onclick="fetchAndPlay('${meta.id.replace(/'/g, "\\'")}')">
+      <div class="rcard" onclick="fetchAndPlay('${meta.id.replace(/'/g, "\\'")}', '${cleanTitle(meta).replace(/'/g, "\\'")}')">
         <div class="art">
           ${coverHTML(meta)}
           ${coverOverlayHTML(meta)}
@@ -396,7 +402,7 @@
     const isLive = isLiveMeta(meta);
     const { league, category } = parseMeta(meta.description);
     slot.innerHTML = `
-      <div class="hero" onclick="fetchAndPlay('${meta.id.replace(/'/g, "\\'")}')">
+      <div class="hero" onclick="fetchAndPlay('${meta.id.replace(/'/g, "\\'")}', '${cleanTitle(meta).replace(/'/g, "\\'")}')">
         ${coverHTML(meta, { hero: true })}
         ${coverOverlayHTML(meta, { hero: true })}
         <div class="scrim"></div>
@@ -525,11 +531,21 @@
       : '<p class="t-secondary" style="grid-column:1/-1;padding:var(--sp-4) 0">No matches found.</p>';
   });
 
-  async function fetchAndPlay(id) {
+  let currentMatchTitle = 'Live Sports';
+
+  async function fetchAndPlay(id, title) {
+    currentMatchTitle = title || 'Live Sports';
+    // Reset any leftover source list from a previously watched match, so
+    // the close button below doesn't mistake stale state for this match
+    // having multiple sources when it doesn't (or vice versa).
+    sourceSheetState = { streams: [], activeLang: 'All' };
+    stopPlayback(); // clear whatever a previously watched match left behind
+
     document.getElementById('player-overlay').style.display = 'flex';
     document.getElementById('loader').style.display = 'flex';
     closeSourceSheet();
     const video = document.getElementById('video');
+    video.style.display = '';
     video.style.opacity = '0';
 
     // Prime the media element synchronously within the click's gesture
@@ -685,6 +701,42 @@
     document.getElementById('sheet-backdrop').style.display = 'none';
   }
 
+  // Backing out of the source list entirely (backdrop tap, or its own
+  // cancel button) means giving up on this match altogether - unlike
+  // handleCloseFromPlayer() below, there's no video playing yet to fall
+  // back to, so this closes the whole player.
+  function cancelFromSourceSheet() {
+    closeSourceSheet();
+    closePlayer();
+  }
+
+  // The player's own close button: if this match had more than one
+  // source, go back to that list instead of leaving the match entirely -
+  // picking a source, deciding it's bad, and having to reopen the match
+  // from the home feed just to try another one was the actual complaint.
+  // Only fully exits to the home feed when there was nothing to go back to.
+  function handleCloseFromPlayer() {
+    if (sourceSheetState.streams.length > 1) {
+      stopPlayback();
+      document.getElementById('sheet-backdrop').style.display = 'flex';
+    } else {
+      closePlayer();
+    }
+  }
+
+  function stopPlayback() {
+    const video = document.getElementById('video');
+    video.pause();
+    video.src = '';
+    video.muted = true;
+    video.style.opacity = '0';
+    if (hls) { hls.destroy(); hls = null; }
+    document.getElementById('unmuteHint').style.display = 'none';
+    const iframe = document.getElementById('webplayer');
+    iframe.src = 'about:blank';
+    iframe.style.display = 'none';
+  }
+
   function unmuteVideo() {
     const video = document.getElementById('video');
     video.muted = false;
@@ -692,14 +744,27 @@
   }
 
   function playStreamUrl(url, streamObj = null) {
+    const video = document.getElementById('video');
+    const iframe = document.getElementById('webplayer');
+    document.getElementById('loader').style.display = 'none';
+
+    // "Web Player" style sources aren't a raw HLS URL we can hand to
+    // hls.js - they're a third-party embed page. Rather than popping a
+    // new tab and abandoning our own player, embed it through the
+    // backend's /watch proxy (the same CORS/referrer-safe wrapper the
+    // rest of the app already relies on) right inside this overlay.
     if (streamObj && streamObj.externalUrl) {
-      window.open(streamObj.externalUrl, '_blank');
-      closePlayer();
+      video.style.display = 'none';
+      video.pause();
+      video.src = '';
+      iframe.style.display = 'block';
+      iframe.src = `/watch?url=${encodeURIComponent(streamObj.externalUrl)}&title=${encodeURIComponent(currentMatchTitle)}`;
       return;
     }
 
-    const video = document.getElementById('video');
-    document.getElementById('loader').style.display = 'none';
+    iframe.style.display = 'none';
+    iframe.src = 'about:blank';
+    video.style.display = '';
     video.style.opacity = '1';
 
     if (!url) {
@@ -733,13 +798,8 @@
 
   function closePlayer() {
     document.getElementById('player-overlay').style.display = 'none';
-    document.getElementById('unmuteHint').style.display = 'none';
     closeSourceSheet();
-    const video = document.getElementById('video');
-    video.pause();
-    video.src = '';
-    video.muted = true;
-    if (hls) { hls.destroy(); hls = null; }
+    stopPlayback();
   }
 
   loadEverything();
