@@ -81,15 +81,16 @@ class StreamedPkProvider extends BaseProvider {
         for (const item of allData) {
           if (!item.id || !item.title) continue;
 
+          const is247Channel = !item.date;
           const isGenuinelyLive = liveVerifiedIds.has(item.id) || (item.sources || []).some(s => liveVerifiedSourceIds.has(s.id));
           const isUpcoming = item.date && item.date > now;
 
-          // If the match date is in the past AND it is not actively broadcasting with verified streams, skip it!
-          if (!isGenuinelyLive && !isUpcoming) {
+          // If it is not a 24/7 channel, not actively live, and not upcoming, it is finished! Skip it.
+          if (!is247Channel && !isGenuinelyLive && !isUpcoming) {
             continue;
           }
 
-          const status = isGenuinelyLive ? 'live' : 'upcoming';
+          const status = is247Channel ? '' : (isGenuinelyLive ? 'live' : 'upcoming');
 
           // Map sources
           const sources = (item.sources || []).map(s => ({

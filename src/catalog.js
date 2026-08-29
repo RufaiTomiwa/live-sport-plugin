@@ -272,7 +272,24 @@ async function handleCatalog(type, id, extra, config) {
     const topLevelCats = ['football', 'cricket', 'basketball', 'motorsport', 'hockey', 'baseball', 'mma', 'golf', 'tennis', 'rugby', 'american_football', 'darts', 'networks', 'college'];
     filteredMatches = matches.filter(m => !topLevelCats.includes(m.category));
   } else if (categoryMatch !== 'catalog') {
-    filteredMatches = matches.filter(m => m.category === categoryMatch);
+    filteredMatches = matches.filter(m => {
+      if (m.category === categoryMatch) return true;
+      // Also include 24/7 networks specifically matching the sport category
+      if (m.category === 'networks') {
+        const titleLower = m.title.toLowerCase();
+        if (categoryMatch === 'cricket' && titleLower.includes('cricket')) return true;
+        if (categoryMatch === 'tennis' && titleLower.includes('tennis')) return true;
+        if (categoryMatch === 'motorsport' && (titleLower.includes('f1') || titleLower.includes('racing') || titleLower.includes('moto') || titleLower.includes('motorsport'))) return true;
+        if (categoryMatch === 'basketball' && (titleLower.includes('nba') || titleLower.includes('basketball'))) return true;
+        if (categoryMatch === 'football' && (titleLower.includes('football') || titleLower.includes('soccer') || titleLower.includes('golazo') || titleLower.includes('laliga') || titleLower.includes('premier league') || titleLower.includes('bein sports'))) return true;
+        if (categoryMatch === 'rugby' && (titleLower.includes('rugby') || titleLower.includes('league') || titleLower.includes('nrl'))) return true;
+        if (categoryMatch === 'american_football' && (titleLower.includes('nfl') || titleLower.includes('american football'))) return true;
+        if (categoryMatch === 'baseball' && (titleLower.includes('mlb') || titleLower.includes('baseball'))) return true;
+        if (categoryMatch === 'hockey' && (titleLower.includes('nhl') || titleLower.includes('hockey'))) return true;
+        if (categoryMatch === 'golf' && (titleLower.includes('golf') || titleLower.includes('pga'))) return true;
+      }
+      return false;
+    });
   }
 
   if (typeof conf.sports === 'string' && conf.sports !== 'all') {
