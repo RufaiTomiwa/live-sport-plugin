@@ -103,8 +103,25 @@ class BaseProvider {
         json: async () => JSON.parse(textData)
       };
     } catch (err) {
-      console.error(`[BaseProvider] Undici fetch error: ${err.message}`);
-      throw err;
+      try {
+        const { Impit } = require('impit');
+        const impitClient = new Impit();
+        const res = await impitClient.fetch(url, {
+          method: options.method || 'GET',
+          headers: options.headers || {},
+          body: options.body
+        });
+        const textData = await res.text();
+        return {
+          ok: res.status >= 200 && res.status < 300,
+          status: res.status,
+          text: async () => textData,
+          json: async () => JSON.parse(textData)
+        };
+      } catch (impitErr) {
+        console.error(`[BaseProvider] Fetch error: ${err.message}`);
+        throw err;
+      }
     }
   }
 

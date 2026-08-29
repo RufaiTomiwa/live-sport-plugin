@@ -298,16 +298,42 @@ async function handleStream(type, id, config) {
         referer = s.behaviorHints.proxyHeaders.request.Referer || '';
       }
 
-      const res = await impitClient.fetch(targetUrl, {
-        method: 'GET',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
-          'Referer': referer
-        },
-        signal: abortController.signal
-      });
-      
-      const bodySample = await res.text();
+      let res;
+      let bodySample = '';
+
+      try {
+        res = await impitClient.fetch(targetUrl, {
+          method: 'GET',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
+            'Referer': referer
+          },
+          signal: abortController.signal
+        });
+        bodySample = await res.text();
+      } catch (impitErr) {
+        // Fallback to undici
+        try {
+          const { request } = require('undici');
+          const uRes = await request(targetUrl, {
+            method: 'GET',
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
+              'Referer': referer
+            },
+            headersTimeout: 3000,
+            bodyTimeout: 3000,
+            signal: abortController.signal
+          });
+          res = { status: uRes.statusCode };
+          bodySample = await uRes.body.text();
+        } catch (undiciErr) {
+          clearTimeout(timeout);
+          console.log(`[Filter] Dropped timeout/error stream: ${targetUrl} - ${impitErr.message}`);
+          return null;
+        }
+      }
+
       clearTimeout(timeout);
 
       // Edge servers return 404 for dead streams, 403 for IP-locked/expired tokens, 502 for upstream failures
@@ -321,6 +347,18 @@ async function handleStream(type, id, config) {
       if (!bodySample.includes('#EXT')) {
         console.log(`[Filter] Dropped fake 200 stream (Invalid M3U8 body): ${targetUrl}`);
         return null;
+      }
+
+      // Parse Master Playlist quality, framerate (FPS), and bitrate in real-time
+      const parsedQuality = m3u8Parser.parseManifestText(bodySample);
+      if (parsedQuality) {
+        if (parsedQuality.qualityTag) s.quality = parsedQuality.qualityTag;
+        if (parsedQuality.resolution) s.resolution = parsedQuality.resolution;
+        if (parsedQuality.bitrateTag) s.bitrate = parsedQuality.bitrateTag;
+        
+        if (s.title && s.title.includes('📺 Quality:')) {
+          s.title = s.title.replace(/📺 Quality: [^\n]+/, `📺 Quality: ${parsedQuality.fullQuality}`);
+        }
       }
       
       return s;
