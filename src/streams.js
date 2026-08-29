@@ -271,6 +271,61 @@ async function handleStream(type, id, config) {
     }
   });
 
+// --- Stream Health Verification ---
+  const { Impit } = require('impit');
+  const impitClient = new Impit();
+
+  const checkedStreams = await Promise.all(streams.map(async (s) => {
+    // We only pre-flight check direct streams (m3u8 urls). Web player links are kept blindly.
+    if (!s.url || s.url.includes('/watch?')) return s;
+
+    let targetUrl = s.url;
+    // If the stream is routed through our manifest proxy, we extract the true upstream URL to ping
+    if (targetUrl.includes('/api/manifest')) {
+      try {
+        const urlObj = new URL('http://localhost' + targetUrl);
+        if (urlObj.searchParams.has('url')) {
+          targetUrl = urlObj.searchParams.get('url');
+        }
+      } catch (e) {}
+    }
+
+    try {
+      const abortController = new AbortController();
+      const timeout = setTimeout(() => abortController.abort(), 2000); // 2 second strict timeout
+
+      let referer = '';
+      if (s.behaviorHints && s.behaviorHints.proxyHeaders && s.behaviorHints.proxyHeaders.request) {
+        referer = s.behaviorHints.proxyHeaders.request.Referer || '';
+      }
+
+      const res = await impitClient.fetch(targetUrl, {
+        method: 'GET',
+        headers: {
+          'Range': 'bytes=0-50', // Lightweight header-only ping
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
+          'Referer': referer
+        },
+        signal: abortController.signal
+      });
+      clearTimeout(timeout);
+
+      // Edge servers return 404 for dead streams, 403 for IP-locked/expired tokens, 502 for upstream failures
+      if (res.status === 404 || res.status === 403 || res.status >= 500) {
+        console.log(`[Filter] Dropped dead stream (${res.status}): ${targetUrl}`);
+        return null;
+      }
+      return s;
+    } catch (err) {
+      console.log(`[Filter] Dropped timeout/error stream: ${targetUrl} - ${err.message}`);
+      return null;
+    }
+  }));
+
+  // Re-assign filtered array
+  streams.length = 0;
+  streams.push(...checkedStreams.filter(Boolean));
+
   // Sort streams: Direct streams first, then by score descending
   streams.sort((a, b) => {
     const aIsDirect = a.name === '⚡ Direct Stream' ? 1 : 0;
