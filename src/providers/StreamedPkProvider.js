@@ -22,6 +22,18 @@ class StreamedPkProvider extends BaseProvider {
       return await res.json();
     });
 
+    this.fetchLiveMatches = this.circuitBreaker.wrap(`${this.name}_fetchLiveMatches`, async () => {
+      const res = await this.proxyFetch(`${this.apiUrl}/matches/live`, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
+          'Accept': 'application/json'
+        },
+        signal: AbortSignal.timeout(10000)
+      });
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      return await res.json();
+    });
+
     this.fetchStreams = this.circuitBreaker.wrap(`${this.name}_fetchStreams`, async (source, id) => {
       const url = `${this.apiUrl}/stream/${encodeURIComponent(source)}/${encodeURIComponent(id)}`;
       const res = await this.proxyFetch(url, {
@@ -39,10 +51,45 @@ class StreamedPkProvider extends BaseProvider {
   async getMatches() {
     const matches = [];
     try {
-      const data = await this.fetchMatches.fire();
-      if (Array.isArray(data)) {
-        for (const item of data) {
+      const [allData, liveData] = await Promise.all([
+        this.fetchMatches.fire().catch(() => []),
+        this.fetchLiveMatches.fire().catch(() => [])
+      ]);
+
+      // Verify which live matches actually have active stream URLs
+      const liveVerifiedIds = new Set();
+      const liveVerifiedSourceIds = new Set();
+      if (Array.isArray(liveData) && liveData.length > 0) {
+        await Promise.all(
+          liveData.map(async (m) => {
+            const src = (m.sources && m.sources[0]) || { source: 'admin', id: m.id };
+            try {
+              const streams = await this.fetchStreams.fire(src.source || 'admin', src.id || m.id);
+              if (Array.isArray(streams) && streams.length > 0) {
+                liveVerifiedIds.add(m.id);
+                (m.sources || []).forEach(s => liveVerifiedSourceIds.add(s.id));
+              }
+            } catch (e) {
+              // Stream endpoint error or empty
+            }
+          })
+        );
+      }
+
+      if (Array.isArray(allData)) {
+        const now = Date.now();
+        for (const item of allData) {
           if (!item.id || !item.title) continue;
+
+          const isGenuinelyLive = liveVerifiedIds.has(item.id) || (item.sources || []).some(s => liveVerifiedSourceIds.has(s.id));
+          const isUpcoming = item.date && item.date > now;
+
+          // If the match date is in the past AND it is not actively broadcasting with verified streams, skip it!
+          if (!isGenuinelyLive && !isUpcoming) {
+            continue;
+          }
+
+          const status = isGenuinelyLive ? 'live' : 'upcoming';
 
           // Map sources
           const sources = (item.sources || []).map(s => ({
@@ -63,7 +110,7 @@ class StreamedPkProvider extends BaseProvider {
             id: `spk_${item.id}`,
             title: item.title,
             category: this.normalizeCategory(item.category),
-            status: item.date && item.date < Date.now() ? 'live' : 'upcoming',
+            status: status,
             date: String(item.date || Date.now()),
             popular: item.popular ? '1' : '0',
             poster: item.poster ? (item.poster.startsWith('http') ? item.poster : `https://streamed.pk${item.poster}`) : '',
