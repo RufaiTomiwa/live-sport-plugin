@@ -43,9 +43,9 @@ class EmbedStProvider extends BaseProvider {
     const IFRAME_FALLBACK_DOMAINS = ['embedindia.st', 'embedindia.com', 'embedsport.xyz', 'sportsembed.su'];
     if (streams.length === 0 && !embedUrl.includes('sportsembed.su')) {
       try {
-        const axios = require('axios');
+        const { request } = require('undici');
         const https = require('https');
-        const htmlRes = await axios.get(embedUrl, {
+        const htmlRes = await request(embedUrl, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
             'Referer': referer,
@@ -70,12 +70,16 @@ class EmbedStProvider extends BaseProvider {
                 const iframeReferer = new URL(iframeSrc).origin + '/';
                 
                 if (iframeSrc.includes('embedindia') && this.embedIndiaProvider) {
-                    const indiaStreams = await this.embedIndiaProvider.resolveStream(iframeSrc, matchCategory, matchTitle, { referer: iframeReferer });
-                    if (indiaStreams.length > 0) {
-                        streams.push(...indiaStreams);
-                        break;
-                    }
-                }
+                      const indiaStreams = await this.embedIndiaProvider.resolveStream(iframeSrc, matchCategory, matchTitle, { referer: iframeReferer });
+                      if (indiaStreams.length > 0) {
+                          indiaStreams.forEach(s => {
+                              s.name = this.name;
+                              s.title = s.title.replace('EmbedIndia', this.name);
+                          });
+                          streams.push(...indiaStreams);
+                          break;
+                      }
+                  }
                 
                 streams.push(new StreamEntity({
                   name: 'EmbedSt',

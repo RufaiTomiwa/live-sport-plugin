@@ -305,12 +305,13 @@ async function handleStream(type, id, config) {
       const res = await impitClient.fetch(targetUrl, {
         method: 'GET',
         headers: {
-          'Range': 'bytes=0-50', // Lightweight header-only ping
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
           'Referer': referer
         },
         signal: abortController.signal
       });
+      
+      const bodySample = await res.text();
       clearTimeout(timeout);
 
       // Edge servers return 404 for dead streams, 403 for IP-locked/expired tokens, 502 for upstream failures
@@ -318,6 +319,14 @@ async function handleStream(type, id, config) {
         console.log(`[Filter] Dropped dead stream (${res.status}): ${targetUrl}`);
         return null;
       }
+      
+      // Some CDNs (like lb8.strmd.st) return 200 OK with "Not found" when token is expired.
+      // If it doesn't contain #EXT, it's not a valid m3u8 playlist.
+      if (!bodySample.includes('#EXT')) {
+        console.log(`[Filter] Dropped fake 200 stream (Invalid M3U8 body): ${targetUrl}`);
+        return null;
+      }
+      
       return s;
     } catch (err) {
       console.log(`[Filter] Dropped timeout/error stream: ${targetUrl} - ${err.message}`);

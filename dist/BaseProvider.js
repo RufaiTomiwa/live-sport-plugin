@@ -81,30 +81,29 @@ class BaseProvider {
       url = proxyUrl.toString();
     }
     
-    // Direct fetch as fallback using Axios (forces IPv4 to match manifest proxy IP-locking)
-    const axios = require('axios');
-    const https = require('https');
+    const { request } = require('undici');
     
     try {
-      const axiosOptions = {
+      const reqOptions = {
         method: options.method || 'GET',
         headers: options.headers || {},
-        httpsAgent: new https.Agent({ family: 4 }), // Force IPv4
-        timeout: 10000,
-        validateStatus: () => true // Don't throw on error status codes
+        headersTimeout: 15000,
+        bodyTimeout: 15000
       };
       
-      if (options.body) axiosOptions.data = options.body;
+      if (options.body) reqOptions.body = options.body;
       
-      const res = await axios(url, axiosOptions);
+      const res = await request(url, reqOptions);
+      const textData = await res.body.text();
+      
       return {
-        ok: res.status >= 200 && res.status < 300,
-        status: res.status,
-        text: async () => typeof res.data === 'string' ? res.data : JSON.stringify(res.data),
-        json: async () => typeof res.data === 'string' ? JSON.parse(res.data) : res.data
+        ok: res.statusCode >= 200 && res.statusCode < 300,
+        status: res.statusCode,
+        text: async () => textData,
+        json: async () => JSON.parse(textData)
       };
     } catch (err) {
-      console.error(`[BaseProvider] Axios fetch error: ${err.message}`);
+      console.error(`[BaseProvider] Undici fetch error: ${err.message}`);
       throw err;
     }
   }
