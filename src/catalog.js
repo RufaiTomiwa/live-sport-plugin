@@ -1,6 +1,5 @@
 const container = require('./container');
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+const { getChannelLogo } = require('./services/ChannelLogoService');
 
 /**
  * Accurately determines if an event is currently live right now.
