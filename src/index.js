@@ -459,12 +459,16 @@ app.get('/watch', (req, res) => {
 
     let safeEmbed, safeReferer;
     try {
-      const parsedEmbed = new URL(decodeURIComponent(embedUrl));
+      let rawEmbed = embedUrl;
+      try { if (typeof rawEmbed === 'string' && rawEmbed.includes('%')) rawEmbed = decodeURIComponent(rawEmbed); } catch (_) {}
+      const parsedEmbed = new URL(rawEmbed);
       if (!['http:', 'https:'].includes(parsedEmbed.protocol)) {
         return res.status(400).send('Invalid embed URL protocol');
       }
       safeEmbed = parsedEmbed.toString();
-      safeReferer = referer ? new URL(decodeURIComponent(referer)).toString() : safeEmbed;
+      let rawReferer = referer || safeEmbed;
+      try { if (typeof rawReferer === 'string' && rawReferer.includes('%')) rawReferer = decodeURIComponent(rawReferer); } catch (_) {}
+      safeReferer = new URL(rawReferer).toString();
     } catch {
       return res.status(400).send('Invalid embed URL');
     }
@@ -626,7 +630,9 @@ app.get('/watch', (req, res) => {
   // Validate — only allow http/https URLs
   let safeUrl;
   try {
-    const parsed = new URL(decodeURIComponent(embedUrl));
+    let rawUrl = embedUrl;
+    try { if (typeof rawUrl === 'string' && rawUrl.includes('%')) rawUrl = decodeURIComponent(rawUrl); } catch (_) {}
+    const parsed = new URL(rawUrl);
     if (!['http:', 'https:'].includes(parsed.protocol)) {
       return res.status(400).send('Invalid URL protocol');
     }
