@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Nuvio Live Sports</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cg style='mix-blend-mode:screen'%3E%3Crect x='2' y='8' width='24' height='24' rx='6' fill='%23FF4FA3'/%3E%3Crect x='14' y='8' width='24' height='24' rx='6' fill='%235B86FF'/%3E%3C/g%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,42 +11,80 @@
   <link rel="stylesheet" href="/sleeve.css">
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <style>
-    main{max-width:1600px;margin:0 auto;padding:var(--sp-5) var(--sp-5) var(--sp-8)}
-    .filterbar{display:flex;gap:var(--sp-4);margin-bottom:var(--sp-5);align-items:center;flex-wrap:wrap}
-    .chiprow{display:flex;gap:var(--sp-2);overflow-x:auto;flex:1;padding-bottom:4px;scrollbar-width:thin}
-    .chiprow::-webkit-scrollbar{height:4px}
-    .chiprow::-webkit-scrollbar-thumb{background:var(--stock-line-strong);border-radius:var(--r-full)}
-    .searchfield{min-width:220px;flex:0 0 260px}
+    body{padding-bottom:env(safe-area-inset-bottom)}
+    .appbar{padding:var(--sp-3) var(--sp-4)}
+    .appbar .brand{font-size:clamp(var(--size-md),4vw,var(--size-lg))}
+    .appbar .btn{padding:0 var(--sp-4);min-height:40px;font-size:var(--size-xs)}
 
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:var(--sp-5)}
+    main{max-width:1600px;margin:0 auto;padding:var(--sp-4) var(--sp-4) var(--sp-8)}
+
+    /* Filter row: chips get their own full-width scroller, search sits below.
+       Stacking these (instead of squeezing chips beside a fixed-width search
+       box) is what keeps chips tappable on narrow screens. */
+    .filterbar{display:flex;flex-direction:column;gap:var(--sp-3);margin-bottom:var(--sp-5)}
+    .chipscroller{position:relative;margin:0 calc(var(--sp-4) * -1)}
+    .chipscroller::before,.chipscroller::after{
+      content:"";position:absolute;top:0;bottom:0;width:28px;z-index:2;pointer-events:none}
+    .chipscroller::before{left:0;background:linear-gradient(to right,var(--stock-base),transparent)}
+    .chipscroller::after{right:0;background:linear-gradient(to left,var(--stock-base),transparent)}
+    .chiprow{display:flex;gap:var(--sp-2);overflow-x:auto;padding:2px var(--sp-4);
+      scroll-snap-type:x proximity;scrollbar-width:none}
+    .chiprow::-webkit-scrollbar{display:none}
+    .chiprow .chip{scroll-snap-align:start;flex:none}
+    .search .input{background:var(--stock-raised)}
+
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:var(--sp-4)}
+
     .match{overflow:hidden}
     .match .art{aspect-ratio:16/9;width:100%}
     .match .art img.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
-      filter:blur(18px) brightness(.55);transform:scale(1.2);transition:filter var(--motion-base),transform var(--motion-base)}
-    .match:hover .art img.bg{filter:blur(12px) brightness(.7);transform:scale(1.1)}
+      filter:blur(18px) brightness(.5);transform:scale(1.2);transition:filter var(--motion-base),transform var(--motion-base)}
+    .match:hover .art img.bg{filter:blur(12px) brightness(.65);transform:scale(1.1)}
     .match .art img.poster{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;
       padding:var(--sp-3);z-index:1;transition:transform var(--motion-base)}
     .match:hover .art img.poster{transform:scale(1.04)}
-    .match .art img.logo{position:absolute;top:var(--sp-3);left:var(--sp-3);width:40px;height:40px;z-index:3;
-      border-radius:var(--r-sm);background:rgba(18,16,38,.7);object-fit:contain;padding:5px;
+    .match .art img.logo{position:absolute;top:var(--sp-3);left:var(--sp-3);width:36px;height:36px;z-index:3;
+      border-radius:var(--r-sm);background:rgba(18,16,38,.75);object-fit:contain;padding:5px;
       border:1px solid var(--stock-line-strong)}
-    .match .art .badge{position:absolute;top:var(--sp-3);right:var(--sp-3);z-index:3}
-    .match .info{position:absolute;bottom:0;left:0;right:0;z-index:3;padding:var(--sp-6) var(--sp-4) var(--sp-4)}
-    .match .name{font-family:var(--font-display);font-weight:700;font-size:var(--size-lg);
-      line-height:1.2;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-      text-shadow:0 2px 6px rgba(0,0,0,.7)}
-    .match .desc{font-size:var(--size-sm);color:var(--text-secondary);margin-top:var(--sp-1);
-      display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.5}
+    .match .art .badge.badge--pink{position:absolute;top:var(--sp-3);right:var(--sp-3);z-index:3}
+    .match .art .cat-badge{position:absolute;top:var(--sp-3);left:var(--sp-3);z-index:3}
+    .match .art img.logo ~ .cat-badge{left:calc(36px + var(--sp-3) + var(--sp-2))}
 
-    #player-overlay{display:none;position:fixed;inset:0;background:rgba(9,8,20,.97);
-      backdrop-filter:blur(20px);z-index:100;flex-direction:column}
-    #close-btn{position:absolute;top:var(--sp-5);right:var(--sp-5);z-index:101}
+    .match .info{position:absolute;bottom:0;left:0;right:0;z-index:3;padding:var(--sp-7) var(--sp-4) var(--sp-4)}
+    .match .name{font-family:var(--font-display);font-weight:700;font-size:var(--size-lg);
+      line-height:1.25;letter-spacing:-.01em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+      overflow:hidden;text-shadow:0 2px 8px rgba(0,0,0,.8)}
+    .match .league{font-family:var(--font-data);font-size:11px;letter-spacing:.06em;
+      color:var(--text-secondary);margin-top:var(--sp-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+    .match .play-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+      background:rgba(9,8,20,0);opacity:0;transition:all var(--motion-base);z-index:2;pointer-events:none}
+    .match:hover .play-hint{opacity:1;background:rgba(9,8,20,.25)}
+    .match .play-hint .circle{width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.14);
+      backdrop-filter:blur(6px);display:grid;place-items:center;color:#fff;
+      transform:scale(.8);transition:transform var(--motion-base)}
+    .match:hover .play-hint .circle{transform:scale(1)}
+
+    @media (max-width:640px){
+      main{padding:var(--sp-3) var(--sp-3) var(--sp-7)}
+      .grid{gap:var(--sp-3)}
+      .chipscroller{margin:0 calc(var(--sp-3) * -1)}
+      .chiprow{padding:2px var(--sp-3)}
+    }
+
+    /* ─── Player ─── */
+    #player-overlay{display:none;position:fixed;inset:0;background:var(--stock-base);
+      z-index:100;flex-direction:column}
+    #close-btn{position:absolute;top:calc(var(--sp-4) + env(safe-area-inset-top));right:var(--sp-4);z-index:101}
     #video-container{width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative}
-    video{width:100%;max-width:1400px;max-height:85vh;border-radius:var(--r-lg);background:#000;box-shadow:var(--el-2)}
+    video{width:100%;height:100%;max-width:1600px;background:#000}
+    @media (min-width:900px){video{max-height:88vh;border-radius:var(--r-lg)}}
     .loader{position:absolute;display:flex;flex-direction:column;align-items:center;gap:var(--sp-4)}
     .spinner{width:40px;height:40px;border:3px solid var(--stock-line-strong);border-top-color:var(--ink-pink);
       border-radius:50%;animation:spin 1s linear infinite}
     @keyframes spin{to{transform:rotate(360deg)}}
+    .unmute-hint{position:absolute;bottom:calc(var(--sp-6) + env(safe-area-inset-bottom));left:50%;
+      transform:translateX(-50%);z-index:5;display:none;align-items:center;gap:var(--sp-2)}
   </style>
 </head>
 <body>
@@ -57,11 +95,13 @@
   <symbol id="i-alert" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 7v6m0 4v.5"/><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M5 12.5l4.5 4.5L19 7"/></symbol>
   <symbol id="i-chevron" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path fill="currentColor" d="M7 4.5v15l13-7.5z"/></symbol>
+  <symbol id="i-volume" viewBox="0 0 24 24"><path fill="currentColor" d="M4 9v6h4l5 5V4L8 9z"/></symbol>
 </svg>
 
 <header class="appbar">
   <div class="brand">
-    <svg width="24" height="24" viewBox="0 0 40 40" aria-hidden="true">
+    <svg width="22" height="22" viewBox="0 0 40 40" aria-hidden="true">
       <g style="mix-blend-mode:screen">
         <rect x="2" y="8" width="24" height="24" rx="6" fill="#FF4FA3"/>
         <rect x="14" y="8" width="24" height="24" rx="6" fill="#5B86FF"/>
@@ -74,10 +114,12 @@
 
 <main>
   <div class="filterbar">
-    <div class="chiprow" id="tabs" role="tablist" aria-label="Sport categories">
-      <span class="t-secondary" style="padding:var(--sp-2) 0">Loading categories&hellip;</span>
+    <div class="chipscroller">
+      <div class="chiprow" id="tabs" role="tablist" aria-label="Sport categories">
+        <span class="t-secondary" style="padding:var(--sp-2) 0">Loading categories&hellip;</span>
+      </div>
     </div>
-    <div class="field search searchfield">
+    <div class="field search">
       <svg width="20" height="20"><use href="#i-search"/></svg>
       <label class="label" for="searchInput" style="position:absolute;left:-9999px">Search matches</label>
       <input type="text" id="searchInput" class="input" placeholder="Search matches, teams&hellip;">
@@ -97,7 +139,10 @@
       <div class="spinner"></div>
       <span class="t-data">Loading stream&hellip;</span>
     </div>
-    <video id="video" controls autoplay></video>
+    <video id="video" controls autoplay playsinline webkit-playsinline muted></video>
+    <button class="btn btn--sm unmute-hint" id="unmuteHint" onclick="unmuteVideo()">
+      <svg width="16" height="16"><use href="#i-volume"/></svg> Tap to unmute
+    </button>
   </div>
 </div>
 
@@ -178,6 +223,7 @@
     if (chipEl) {
       document.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', 'false'));
       chipEl.setAttribute('aria-pressed', 'true');
+      chipEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
     }
 
     document.getElementById('searchInput').value = '';
@@ -204,6 +250,19 @@
     renderGrid(filtered);
   });
 
+  // Descriptions come as newline-separated "Label: value" pairs (League,
+  // Category, Status). Status is dropped since the LIVE badge already
+  // covers it; League/Category become a compact subtitle + badge instead
+  // of a wall of raw text.
+  function parseMeta(desc) {
+    const out = {};
+    (desc || '').split('\n').forEach(line => {
+      const m = line.match(/(League|Category)\s*:\s*(.+)/i);
+      if (m) out[m[1].toLowerCase()] = m[2].trim();
+    });
+    return out;
+  }
+
   function renderGrid(metas) {
     const grid = document.getElementById('grid');
     grid.innerHTML = '';
@@ -224,16 +283,19 @@
 
       const isLive = meta.name.includes('🔴');
       const cleanName = meta.name.replace('🔴 [LIVE] ', '');
+      const { league, category } = parseMeta(meta.description);
 
       card.innerHTML = `
         <div class="art art--scrim">
           <img class="bg" src="${meta.background}" onerror="this.style.display='none'" loading="lazy">
           <img class="poster" src="${meta.poster}" onerror="this.src='https://raw.githubusercontent.com/stremio/stremio-addon-sdk/master/docs/api/images/stremio-logo.png'" loading="lazy">
           ${meta.logo && meta.logo !== meta.poster ? `<img class="logo" src="${meta.logo}">` : ''}
+          ${category ? `<span class="badge badge--outline cat-badge">${category}</span>` : ''}
           ${isLive ? '<span class="badge badge--pink">Live</span>' : ''}
+          <div class="play-hint"><span class="circle"><svg width="22" height="22"><use href="#i-play"/></svg></span></div>
           <div class="info">
             <div class="name">${cleanName}</div>
-            <div class="desc">${(meta.description || '').replace(/\n/g, ' ')}</div>
+            ${league ? `<div class="league">${league}</div>` : ''}
           </div>
         </div>
       `;
@@ -247,6 +309,14 @@
     closeSourceSheet();
     const video = document.getElementById('video');
     video.style.opacity = '0';
+
+    // Prime the media element synchronously within the click's gesture
+    // context. Mobile browsers gate autoplay to calls made during (or very
+    // soon after) a user gesture; the fetch below is async, so by the time
+    // the real stream is ready that window can have closed. Starting a
+    // muted play() now keeps the element "unlocked" for the real play()
+    // call later, which is why streams intermittently failed to start.
+    try { video.muted = true; video.play().catch(() => {}); } catch (_) {}
 
     try {
       const res = await fetch(`/stream/tv/${id}.json`);
@@ -291,6 +361,12 @@
     document.getElementById('sheet-backdrop').style.display = 'none';
   }
 
+  function unmuteVideo() {
+    const video = document.getElementById('video');
+    video.muted = false;
+    document.getElementById('unmuteHint').style.display = 'none';
+  }
+
   function playStreamUrl(url, streamObj = null) {
     if (streamObj && streamObj.externalUrl) {
       window.open(streamObj.externalUrl, '_blank');
@@ -308,24 +384,40 @@
       return;
     }
 
+    const tryUnmuteAfterStart = () => {
+      // Muted autoplay is reliable everywhere; toggling mute off after
+      // playback has already begun is not gated the way starting playback
+      // is, so this quietly restores sound without needing a fresh tap.
+      video.muted = false;
+      if (video.muted) document.getElementById('unmuteHint').style.display = 'inline-flex';
+    };
+
     if (Hls.isSupported()) {
       if (hls) hls.destroy();
       hls = new Hls({ maxBufferLength: 30 });
       hls.loadSource(url);
       hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(e => console.log(e)));
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        video.play().then(tryUnmuteAfterStart).catch(() => {
+          document.getElementById('unmuteHint').style.display = 'inline-flex';
+        });
+      });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = url;
-      video.play().catch(e => console.log(e));
+      video.play().then(tryUnmuteAfterStart).catch(() => {
+        document.getElementById('unmuteHint').style.display = 'inline-flex';
+      });
     }
   }
 
   function closePlayer() {
     document.getElementById('player-overlay').style.display = 'none';
+    document.getElementById('unmuteHint').style.display = 'none';
     closeSourceSheet();
     const video = document.getElementById('video');
     video.pause();
     video.src = '';
+    video.muted = true;
     if (hls) { hls.destroy(); hls = null; }
   }
 

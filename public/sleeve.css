@@ -133,10 +133,11 @@ a{color:inherit}
   padding:4px var(--sp-2);border-radius:var(--r-sm);
   background:var(--stock-raised-2);color:var(--text-secondary)}
 .badge--pink{background:var(--ink-pink);color:var(--text-inverse);animation:pulseBadge 2s infinite}
+.badge--outline{background:rgba(18,16,38,.6);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.15);color:var(--text-primary)}
 @keyframes pulseBadge{0%{box-shadow:0 0 0 0 rgba(255,79,163,.6)}70%{box-shadow:0 0 0 8px rgba(255,79,163,0)}100%{box-shadow:0 0 0 0 rgba(255,79,163,0)}}
 
 .chip{display:inline-flex;align-items:center;gap:var(--sp-2);
-  min-height:38px;padding:0 var(--sp-4);border-radius:var(--r-full);
+  min-height:var(--tap-min);padding:0 var(--sp-4);border-radius:var(--r-full);
   border:1px solid var(--stock-line-strong);background:var(--stock-raised);
   color:var(--text-secondary);font-size:var(--size-sm);font-weight:600;cursor:pointer;
   white-space:nowrap;transition:all var(--motion-fast)}
