@@ -148,8 +148,8 @@
     .source-row .viewers{font-family:var(--font-data);font-size:11px;color:var(--text-secondary);
       display:flex;align-items:center;gap:3px;white-space:nowrap}
     .source-row .actions{display:flex;gap:var(--sp-2);flex:none;margin-left:var(--sp-1)}
-    .vlc-btn{background:#ff8800;color:#231000;border-color:#ff8800}
-    .vlc-btn:hover:not(:disabled){opacity:.85}
+    .vlc-btn{text-decoration:none}
+    .vlc-btn:hover{border-color:#ff8800}
 
     /* ─── Player ─── */
     #player-overlay{display:none;position:fixed;inset:0;background:var(--stock-base);
@@ -176,6 +176,13 @@
   <symbol id="i-chevron" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></symbol>
   <symbol id="i-play" viewBox="0 0 24 24"><path fill="currentColor" d="M7 4.5v15l13-7.5z"/></symbol>
   <symbol id="i-volume" viewBox="0 0 24 24"><path fill="currentColor" d="M4 9v6h4l5 5V4L8 9z"/></symbol>
+  <symbol id="i-vlc" viewBox="0 0 24 24">
+    <ellipse cx="12" cy="20.3" rx="7" ry="1.4" fill="#000" opacity=".25"/>
+    <path d="M7.3 20 L11.25 4.6a.8.8 0 0 1 1.5 0L16.7 20z" fill="#FF8800"/>
+    <rect x="8.3" y="14.2" width="7.4" height="2" fill="#fff"/>
+    <rect x="9.7" y="9.6" width="4.6" height="1.6" fill="#fff"/>
+    <circle cx="12" cy="4.4" r="1" fill="#FF8800"/>
+  </symbol>
 </svg>
 
 <header class="appbar">
@@ -654,7 +661,7 @@
               ${meta.viewers ? `<span class="viewers">👥 ${meta.viewers}</span>` : ''}
             </div>
             <div class="actions">
-              ${stream.url ? `<button class="btn btn--icon btn--sm vlc-btn" title="Open in VLC" onclick="event.stopPropagation(); openInVlc(${idx})">V</button>` : ''}
+              ${stream.url ? `<a class="btn btn--icon btn--sm btn--secondary vlc-btn" title="Open in VLC" href="${vlcUrlFor(stream.url)}" onclick="event.stopPropagation(); toast('Opening in VLC…')"><svg width="20" height="20"><use href="#i-vlc"/></svg></a>` : ''}
               <button class="btn btn--icon btn--sm" title="Play" onclick="event.stopPropagation(); playFromSheet(${idx})">
                 <svg width="16" height="16"><use href="#i-play"/></svg>
               </button>
@@ -672,13 +679,6 @@
     closeSourceSheet();
     document.getElementById('loader').style.display = 'flex';
     playStreamUrl(item.stream.url, item.stream);
-  }
-
-  function openInVlc(idx) {
-    const item = sourceSheetState.streams[idx];
-    if (!item || !item.stream.url) return;
-    window.location.href = vlcUrlFor(item.stream.url);
-    toast('Opening in VLC…');
   }
 
   function closeSourceSheet() {
