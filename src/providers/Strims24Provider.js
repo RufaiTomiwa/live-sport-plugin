@@ -106,16 +106,32 @@ class Strims24Provider extends BaseProvider {
     const sportId = this.SPORT_FS_ID[sport];
     if (sportId === undefined) return [];
     const prefix = sport === 'motorsport' ? 'fp_' : 'f_';
-    const url = `${this.flashBase}/${prefix}${sportId}_0_2_en_1`;
-    try {
-      const res = await this.fetchData.fire(url, { 'x-fsign': this.flashSign, accept: '*/*' });
-      if (!res) return [];
-      const text = await res.text();
-      return this.parseFlashData(text, sport);
-    } catch (e) {
-      console.error(`[${this.name}] Failed to fetch flashscore for ${sport}`, e.message);
-      return [];
+    
+    // Fetch today (0), yesterday (-1), and tomorrow (1) to cover all timezone and ongoing match boundaries
+    const days = [0, -1, 1];
+    const results = await Promise.allSettled(
+      days.map(async (d) => {
+        const url = `${this.flashBase}/${prefix}${sportId}_${d}_2_en_1`;
+        const res = await this.fetchData.fire(url, { 'x-fsign': this.flashSign, accept: '*/*' });
+        if (!res) return [];
+        const text = await res.text();
+        return this.parseFlashData(text, sport);
+      })
+    );
+
+    const events = [];
+    const seen = new Set();
+    for (const r of results) {
+      if (r.status === 'fulfilled' && Array.isArray(r.value)) {
+        for (const ev of r.value) {
+          if (ev && ev.id && !seen.has(ev.id)) {
+            seen.add(ev.id);
+            events.push(ev);
+          }
+        }
+      }
     }
+    return events;
   }
 
   async fetchStrimsMatches(sport, date) {
@@ -226,19 +242,7 @@ class Strims24Provider extends BaseProvider {
           }
         }
 
-        // Fallback for manual FS matches that were not in FlashScore feed
-        for (const fsId of manualFsIds) {
-          if (!processedFsIds.has(fsId)) {
-            matches.push(new MatchEntity({
-              id: `FS:${fsId}`,
-              title: `Live Match (${fsId})`,
-              category: this.normalizeCategory(sport),
-              date: now.toString(),
-              popular: '1',
-              sources: [{ source: 'strims24', id: `FS:${fsId}`, original_sport: sport }]
-            }));
-          }
-        }
+
 
         for (const it of customItems) {
            const kickoff = it.start_ts ? it.start_ts * 1000 : now;
