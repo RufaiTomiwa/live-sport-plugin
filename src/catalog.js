@@ -10,7 +10,7 @@ const container = require('./container');
  */
 function isMatchLive(match) {
   if (!match) return false;
-  if (match.category === 'networks') return true;
+  if (match.category === 'networks' || !match.date) return true;
 
   // 1. Explicit finished / postponed / cancelled statuses are never live
   if (match.status === 'finished' || match.status === 'ended' || match.status === 'postponed' || match.status === 'cancelled') {
@@ -201,13 +201,14 @@ function mapMatchToMetaPreview(match, config = {}) {
      }
   }
 
-  const prefix = isLive ? (match.category === 'networks' ? '📺 ' : '🔴 LIVE: ') : '⏱️ ';
+  const is247 = match.category === 'networks' || !match.date;
+  const prefix = isLive ? (is247 ? '📺 ' : '🔴 LIVE: ') : '⏱️ ';
   const cast = [];
   if (match.team1 && match.team1.name) cast.push(match.team1.name);
   if (match.team2 && match.team2.name) cast.push(match.team2.name);
 
   const leagueStr = match.league ? `🏆 League: ${match.league}\n` : '';
-  const statusStr = match.category === 'networks' 
+  const statusStr = is247 
     ? '24/7 Live Network' 
     : (isLive ? '🔴 LIVE NOW' : `Kickoff at ${timeString}${relativeTimeStr}`);
   const desc = `${leagueStr}📅 Category: ${match.category.toUpperCase()}\n⏰ Status: ${statusStr}`;
@@ -221,7 +222,7 @@ function mapMatchToMetaPreview(match, config = {}) {
     posterShape: 'landscape',
     background: background,
     logo: logo,
-    releaseInfo: isLive ? (match.category === 'networks' ? '24/7' : 'LIVE') : timeString,
+    releaseInfo: isLive ? (is247 ? '24/7' : 'LIVE') : timeString,
     description: desc,
     cast: cast,
     behaviorHints: {

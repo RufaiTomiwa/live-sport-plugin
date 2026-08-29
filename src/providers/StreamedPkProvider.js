@@ -81,9 +81,9 @@ class StreamedPkProvider extends BaseProvider {
         for (const item of allData) {
           if (!item.id || !item.title) continue;
 
-          const is247Channel = !item.date;
-          const isGenuinelyLive = liveVerifiedIds.has(item.id) || (item.sources || []).some(s => liveVerifiedSourceIds.has(s.id));
-          const isUpcoming = item.date && item.date > now;
+          const is247Channel = !item.date || Number(item.date) <= 0;
+          const isGenuinelyLive = is247Channel || liveVerifiedIds.has(item.id) || (item.sources || []).some(s => liveVerifiedSourceIds.has(s.id));
+          const isUpcoming = !is247Channel && item.date && Number(item.date) > now;
 
           // If it is not a 24/7 channel, not actively live, and not upcoming, it is finished! Skip it.
           if (!is247Channel && !isGenuinelyLive && !isUpcoming) {
@@ -110,10 +110,10 @@ class StreamedPkProvider extends BaseProvider {
           matches.push(new MatchEntity({
             id: `spk_${item.id}`,
             title: item.title,
-            category: this.normalizeCategory(item.category),
+            category: is247Channel && (item.id.includes('channel') || item.id.includes('network') || item.id.includes('tv') || Number(item.date) <= 0) ? (item.category === 'cricket' ? 'cricket' : (item.category === 'tennis' ? 'tennis' : (item.category === 'rugby' ? 'rugby' : this.normalizeCategory(item.category)))) : this.normalizeCategory(item.category),
             status: status,
-            date: String(item.date || Date.now()),
-            popular: item.popular ? '1' : '0',
+            date: is247Channel ? '' : String(item.date || Date.now()),
+            popular: is247Channel ? '1' : (item.popular ? '1' : '0'),
             poster: item.poster ? (item.poster.startsWith('http') ? item.poster : `https://streamed.pk${item.poster}`) : '',
             logo: item.teams && item.teams.home && item.teams.home.badge ? `https://streamed.pk/api/images/proxy/${item.teams.home.badge}` : '',
             background: item.poster ? (item.poster.startsWith('http') ? item.poster : `https://streamed.pk${item.poster}`) : '',
