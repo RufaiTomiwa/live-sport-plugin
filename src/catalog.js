@@ -2,8 +2,54 @@ const container = require('./container');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/**
+ * Accurately determines if an event is currently live right now.
+ * 24/7 networks are always live.
+ * Fixtures with a kickoff time are live starting 15 minutes before kickoff
+ * up to the sport-specific max game duration.
+ */
+function isMatchLive(match) {
+  if (!match) return false;
+  if (match.category === 'networks') return true;
+
+  const now = Date.now();
+  const kickoff = match.date ? parseInt(match.date, 10) : 0;
+
+  if (match.status === 'finished' || match.status === 'ended') {
+    return false;
+  }
+
+  if (kickoff > 0) {
+    // If kickoff is more than 15 minutes in the future, it's definitely UPCOMING, not live
+    if (kickoff > now + 15 * 60 * 1000) {
+      return false;
+    }
+
+    const durations = {
+      cricket: 8 * 60 * 60 * 1000,
+      motorsport: 4 * 60 * 60 * 1000,
+      american_football: 4 * 60 * 60 * 1000,
+      baseball: 3.5 * 60 * 60 * 1000,
+      basketball: 3 * 60 * 60 * 1000,
+      tennis: 4 * 60 * 60 * 1000,
+      golf: 6 * 60 * 60 * 1000,
+      football: 2.5 * 60 * 60 * 1000,
+      rugby: 2.5 * 60 * 60 * 1000,
+      hockey: 3 * 60 * 60 * 1000,
+      mma: 5 * 60 * 60 * 1000,
+      darts: 4 * 60 * 60 * 1000
+    };
+    const maxDuration = durations[match.category] || (3 * 60 * 60 * 1000);
+
+    return now >= (kickoff - 15 * 60 * 1000) && now <= (kickoff + maxDuration);
+  }
+
+  return match.status === 'live' || match.status === 'in_progress';
+}
+
 function mapMatchToMetaPreview(match, config = {}) {
-  const titleStr = match.title || 'Live Match';
+  const isLive = isMatchLive(match);
+  const titleStr = match.title || (isLive ? 'Live Match' : 'Upcoming Match');
   const safeTitle = encodeURIComponent(Array.from(titleStr).slice(0, 30).join(''));
   
   // Dynamic Sport-Specific Posters
@@ -111,7 +157,7 @@ function mapMatchToMetaPreview(match, config = {}) {
   
   let background = match.background ? getProxyUrl(match.background, false) : poster;
 
-  let timeString = '24/7 Stream';
+  let timeString = match.category === 'networks' ? '24/7 Stream' : 'Live Now';
   let relativeTimeStr = '';
   let releasedIso = null;
   
@@ -128,7 +174,7 @@ function mapMatchToMetaPreview(match, config = {}) {
      
      const now = Date.now();
      const diff = dateObj.getTime() - now;
-     if (diff > 0 && match.popular === '0') {
+     if (diff > 0 && !isLive) {
        const hours = Math.floor(diff / (1000 * 60 * 60));
        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
        if (hours > 24) {
@@ -141,13 +187,16 @@ function mapMatchToMetaPreview(match, config = {}) {
      }
   }
 
-  const prefix = match.popular === '1' ? '🔴 LIVE: ' : '⏱️ ';
+  const prefix = isLive ? (match.category === 'networks' ? '📺 ' : '🔴 LIVE: ') : '⏱️ ';
   const cast = [];
   if (match.team1 && match.team1.name) cast.push(match.team1.name);
   if (match.team2 && match.team2.name) cast.push(match.team2.name);
 
   const leagueStr = match.league ? `🏆 League: ${match.league}\n` : '';
-  const desc = `${leagueStr}📅 Category: ${match.category.toUpperCase()}\n⏰ Status: ${timeString === '24/7 Stream' ? '24/7 Live Network' : 'Kickoff at ' + timeString + relativeTimeStr}`;
+  const statusStr = match.category === 'networks' 
+    ? '24/7 Live Network' 
+    : (isLive ? '🔴 LIVE NOW' : `Kickoff at ${timeString}${relativeTimeStr}`);
+  const desc = `${leagueStr}📅 Category: ${match.category.toUpperCase()}\n⏰ Status: ${statusStr}`;
 
   const metaPreview = {
     id: `nuvio_sport_${match.id}`,
@@ -158,7 +207,7 @@ function mapMatchToMetaPreview(match, config = {}) {
     posterShape: 'landscape',
     background: background,
     logo: logo,
-    releaseInfo: timeString,
+    releaseInfo: isLive ? (match.category === 'networks' ? '24/7' : 'LIVE') : timeString,
     description: desc,
     cast: cast,
     behaviorHints: {
@@ -191,13 +240,10 @@ async function handleCatalog(type, id, extra, config) {
   let filteredMatches = matches;
 
   if (categoryMatch === 'live') {
-    filteredMatches = matches.filter(m => m.popular === '1');
+    filteredMatches = matches.filter(m => isMatchLive(m));
   } else if (categoryMatch === 'upcoming') {
     const now = Date.now();
-    filteredMatches = matches.filter(m => {
-      const kickoff = parseInt(m.date) || 0;
-      return m.popular === '0' && kickoff > now;
-    });
+    filteredMatches = matches.filter(m => !isMatchLive(m) && (parseInt(m.date) || 0) > now);
   } else if (categoryMatch === 'teams') {
     if (typeof conf.teams === 'string' && conf.teams.trim()) {
       const favoriteTeams = conf.teams.toLowerCase().split(',').map(t => t.trim()).filter(Boolean);
@@ -222,14 +268,19 @@ async function handleCatalog(type, id, extra, config) {
   }
 
   filteredMatches = [...filteredMatches].sort((a, b) => {
-    const aIsLive = a.popular === '1' ? 1 : 0;
-    const bIsLive = b.popular === '1' ? 1 : 0;
-    if (aIsLive !== bIsLive) return bIsLive - aIsLive;
+    const aIsLive = isMatchLive(a) ? 1 : 0;
+    const bIsLive = isMatchLive(b) ? 1 : 0;
+    if (aIsLive !== bIsLive) return bIsLive - aIsLive; // Live matches first
+    
+    // If both are live or both upcoming, popular/featured matches first
+    const aPop = a.popular === '1' ? 1 : 0;
+    const bPop = b.popular === '1' ? 1 : 0;
+    if (aPop !== bPop) return bPop - aPop;
     
     const dateA = a.date ? parseInt(a.date) : 0;
     const dateB = b.date ? parseInt(b.date) : 0;
     
-    // Sort upcoming by closest first
+    // Sort upcoming by closest kickoff first
     if (dateA > 0 && dateB > 0) return dateA - dateB;
     return 0;
   });
