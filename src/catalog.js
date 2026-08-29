@@ -286,7 +286,12 @@ async function handleCatalog(type, id, extra, config) {
     const bIsLive = isMatchLive(b) ? 1 : 0;
     if (aIsLive !== bIsLive) return bIsLive - aIsLive; // Live matches first
     
-    // If both are live or both upcoming, popular/featured matches first
+    // Within live matches: Actual live event fixtures (UFC, F1, Football, etc.) take priority over 24/7 TV channels
+    const aIsEvent = a.category !== 'networks' ? 1 : 0;
+    const bIsEvent = b.category !== 'networks' ? 1 : 0;
+    if (aIsEvent !== bIsEvent) return bIsEvent - aIsEvent;
+
+    // Featured / Popular matches first
     const aPop = a.popular === '1' ? 1 : 0;
     const bPop = b.popular === '1' ? 1 : 0;
     if (aPop !== bPop) return bPop - aPop;
