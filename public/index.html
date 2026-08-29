@@ -155,6 +155,10 @@
     #player-overlay{display:none;position:fixed;inset:0;background:var(--stock-base);
       z-index:100;flex-direction:column}
     #close-btn{position:absolute;top:calc(var(--sp-4) + env(safe-area-inset-top));right:var(--sp-4);z-index:101}
+    #switch-btn{position:absolute;top:calc(var(--sp-4) + env(safe-area-inset-top));right:calc(var(--sp-4) + var(--tap-min) + var(--sp-2));z-index:101}
+    .live-edge-btn{position:absolute;bottom:calc(var(--sp-5) + env(safe-area-inset-bottom));left:var(--sp-4);z-index:5;
+      display:none;align-items:center;gap:var(--sp-2);background:rgba(18,16,38,.75);border-color:rgba(255,255,255,.2)}
+    .live-edge-btn .live-dot{width:8px;height:8px;border-radius:50%;background:var(--ink-pink);flex:none;animation:pulseBadge 2s infinite}
     #video-container{width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative}
     video,#webplayer{width:100%;height:100%;max-width:1600px;background:#000;border:0}
     @media (min-width:900px){video,#webplayer{max-height:88vh;border-radius:var(--r-lg)}}
@@ -176,6 +180,7 @@
   <symbol id="i-chevron" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></symbol>
   <symbol id="i-play" viewBox="0 0 24 24"><path fill="currentColor" d="M7 4.5v15l13-7.5z"/></symbol>
   <symbol id="i-volume" viewBox="0 0 24 24"><path fill="currentColor" d="M4 9v6h4l5 5V4L8 9z"/></symbol>
+  <symbol id="i-switch" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M4 8h13m0 0l-3-3m3 3l-3 3M20 16H7m0 0l3 3m-3-3l3-3"/></symbol>
   <symbol id="i-vlc" viewBox="0 0 24 24">
     <ellipse cx="12" cy="20.3" rx="7" ry="1.4" fill="#000" opacity=".25"/>
     <path d="M7.3 20 L11.25 4.6a.8.8 0 0 1 1.5 0L16.7 20z" fill="#FF8800"/>
@@ -231,6 +236,9 @@
 </div>
 
 <div id="player-overlay">
+  <button id="switch-btn" class="btn btn--icon btn--secondary" aria-label="Switch stream" onclick="backToSourceList()" style="display:none">
+    <svg width="20" height="20"><use href="#i-switch"/></svg>
+  </button>
   <button id="close-btn" class="btn btn--icon btn--secondary" aria-label="Close player" onclick="handleCloseFromPlayer()">
     <svg width="20" height="20"><use href="#i-x"/></svg>
   </button>
@@ -243,6 +251,9 @@
     <iframe id="webplayer" style="display:none" allow="autoplay; encrypted-media; fullscreen; picture-in-picture"></iframe>
     <button class="btn btn--sm unmute-hint" id="unmuteHint" onclick="unmuteVideo()">
       <svg width="16" height="16"><use href="#i-volume"/></svg> Tap to unmute
+    </button>
+    <button class="btn btn--sm live-edge-btn" id="liveEdgeBtn" onclick="jumpToLiveEdge()" style="display:none">
+      <span class="live-dot"></span> Go live
     </button>
   </div>
 </div>
@@ -629,6 +640,7 @@
     renderSourceRows();
     document.getElementById('sourceCount').textContent = `${streams.length} option${streams.length === 1 ? '' : 's'}`;
     document.getElementById('sheet-backdrop').style.display = 'flex';
+    document.getElementById('switch-btn').style.display = streams.length > 1 ? 'flex' : 'none';
   }
 
   function renderSourceFilters() {
@@ -717,11 +729,18 @@
   // Only fully exits to the home feed when there was nothing to go back to.
   function handleCloseFromPlayer() {
     if (sourceSheetState.streams.length > 1) {
-      stopPlayback();
-      document.getElementById('sheet-backdrop').style.display = 'flex';
+      backToSourceList();
     } else {
       closePlayer();
     }
+  }
+
+  // Same "stop the current stream, reopen the picker" action, but reachable
+  // directly from the always-visible switch button during playback -
+  // closing the player first to switch sources wasn't obvious.
+  function backToSourceList() {
+    stopPlayback();
+    document.getElementById('sheet-backdrop').style.display = 'flex';
   }
 
   function stopPlayback() {
@@ -732,9 +751,29 @@
     video.style.opacity = '0';
     if (hls) { hls.destroy(); hls = null; }
     document.getElementById('unmuteHint').style.display = 'none';
+    document.getElementById('liveEdgeBtn').style.display = 'none';
     const iframe = document.getElementById('webplayer');
     iframe.src = 'about:blank';
     iframe.style.display = 'none';
+  }
+
+  // Jumps playback to the live edge of the stream's actual seekable range.
+  // Works the same way whether hls.js or the browser's native HLS support
+  // is driving playback, since both report the true live window through
+  // the standard video.seekable API - no need to reach into hls.js
+  // internals for this.
+  function jumpToLiveEdge() {
+    const video = document.getElementById('video');
+    try {
+      if (video.seekable && video.seekable.length > 0) {
+        const edge = video.seekable.end(video.seekable.length - 1);
+        video.currentTime = Math.max(0, edge - 0.5);
+        video.play().catch(() => {});
+        toast('Jumped to live edge.');
+      }
+    } catch (e) {
+      console.warn('Could not jump to live edge', e);
+    }
   }
 
   function unmuteVideo() {
@@ -757,6 +796,7 @@
       video.style.display = 'none';
       video.pause();
       video.src = '';
+      document.getElementById('liveEdgeBtn').style.display = 'none'; // no seekable API access into a cross-origin embed
       iframe.style.display = 'block';
       iframe.src = `/watch?url=${encodeURIComponent(streamObj.externalUrl)}&title=${encodeURIComponent(currentMatchTitle)}`;
       return;
@@ -776,11 +816,25 @@
     const tryUnmuteAfterStart = () => {
       video.muted = false;
       if (video.muted) document.getElementById('unmuteHint').style.display = 'inline-flex';
+      document.getElementById('liveEdgeBtn').style.display = 'inline-flex';
     };
 
     if (Hls.isSupported()) {
       if (hls) hls.destroy();
-      hls = new Hls({ maxBufferLength: 30 });
+      hls = new Hls({
+        // Defaults keep ~3 segments back from the live edge before ever
+        // starting playback - at a typical 6-10s segment length for these
+        // scraped sports streams, that's exactly the 18-30s lag reported.
+        // Starting closer to the edge and letting hls.js nudge playback
+        // speed to recover drift (rather than only hard-seeking once far
+        // behind) keeps it close to live without constant stuttering.
+        liveSyncDurationCount: 2,
+        liveMaxLatencyDurationCount: 5,
+        maxLiveSyncPlaybackRate: 1.3,
+        lowLatencyMode: true,
+        maxBufferLength: 15,
+        backBufferLength: 30
+      });
       hls.loadSource(url);
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
