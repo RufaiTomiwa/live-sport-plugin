@@ -11,66 +11,88 @@
   <link rel="stylesheet" href="/sleeve.css">
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <style>
-    body{padding-bottom:env(safe-area-inset-bottom)}
-    .appbar{padding:var(--sp-3) var(--sp-4)}
-    .appbar .brand{font-size:clamp(var(--size-md),4vw,var(--size-lg))}
-    .appbar .btn{padding:0 var(--sp-4);min-height:40px;font-size:var(--size-xs)}
-
-    main{max-width:1600px;margin:0 auto;padding:var(--sp-4) var(--sp-4) var(--sp-8)}
-
-    /* Filter row: chips get their own full-width scroller, search sits below.
-       Stacking these (instead of squeezing chips beside a fixed-width search
-       box) is what keeps chips tappable on narrow screens. */
-    .filterbar{display:flex;flex-direction:column;gap:var(--sp-3);margin-bottom:var(--sp-5)}
-    .chipscroller{position:relative;margin:0 calc(var(--sp-4) * -1)}
-    .chipscroller::before,.chipscroller::after{
-      content:"";position:absolute;top:0;bottom:0;width:28px;z-index:2;pointer-events:none}
-    .chipscroller::before{left:0;background:linear-gradient(to right,var(--stock-base),transparent)}
-    .chipscroller::after{right:0;background:linear-gradient(to left,var(--stock-base),transparent)}
-    .chiprow{display:flex;gap:var(--sp-2);overflow-x:auto;padding:2px var(--sp-4);
-      scroll-snap-type:x proximity;scrollbar-width:none}
-    .chiprow::-webkit-scrollbar{display:none}
-    .chiprow .chip{scroll-snap-align:start;flex:none}
-    .search .input{background:var(--stock-raised)}
-
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:var(--sp-4)}
-
-    .match{overflow:hidden}
-    .match .art{aspect-ratio:16/9;width:100%}
-    .match .art img.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
-      filter:blur(18px) brightness(.5);transform:scale(1.2);transition:filter var(--motion-base),transform var(--motion-base)}
-    .match:hover .art img.bg{filter:blur(12px) brightness(.65);transform:scale(1.1)}
-    .match .art img.poster{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;
-      padding:var(--sp-3);z-index:1;transition:transform var(--motion-base)}
-    .match:hover .art img.poster{transform:scale(1.04)}
-    .match .art img.logo{position:absolute;top:var(--sp-3);left:var(--sp-3);width:36px;height:36px;z-index:3;
-      border-radius:var(--r-sm);background:rgba(18,16,38,.75);object-fit:contain;padding:5px;
-      border:1px solid var(--stock-line-strong)}
-    .match .art .badge.badge--pink{position:absolute;top:var(--sp-3);right:var(--sp-3);z-index:3}
-    .match .art .cat-badge{position:absolute;top:var(--sp-3);left:var(--sp-3);z-index:3}
-    .match .art img.logo ~ .cat-badge{left:calc(36px + var(--sp-3) + var(--sp-2))}
-
-    .match .info{position:absolute;bottom:0;left:0;right:0;z-index:3;padding:var(--sp-7) var(--sp-4) var(--sp-4)}
-    .match .name{font-family:var(--font-display);font-weight:700;font-size:var(--size-lg);
-      line-height:1.25;letter-spacing:-.01em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
-      overflow:hidden;text-shadow:0 2px 8px rgba(0,0,0,.8)}
-    .match .league{font-family:var(--font-data);font-size:11px;letter-spacing:.06em;
-      color:var(--text-secondary);margin-top:var(--sp-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-
-    .match .play-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-      background:rgba(9,8,20,0);opacity:0;transition:all var(--motion-base);z-index:2;pointer-events:none}
-    .match:hover .play-hint{opacity:1;background:rgba(9,8,20,.25)}
-    .match .play-hint .circle{width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.14);
-      backdrop-filter:blur(6px);display:grid;place-items:center;color:#fff;
-      transform:scale(.8);transition:transform var(--motion-base)}
-    .match:hover .play-hint .circle{transform:scale(1)}
-
-    @media (max-width:640px){
-      main{padding:var(--sp-3) var(--sp-3) var(--sp-7)}
-      .grid{gap:var(--sp-3)}
-      .chipscroller{margin:0 calc(var(--sp-3) * -1)}
-      .chiprow{padding:2px var(--sp-3)}
+    body{
+      padding-bottom:env(safe-area-inset-bottom);
+      background-image:radial-gradient(circle at 50% 0%,rgba(255,79,163,.06),transparent 40%);
     }
+    .appbar{padding:var(--sp-3) var(--sp-4)}
+    .appbar .brand{font-size:clamp(var(--size-md),4vw,var(--size-lg));gap:var(--sp-2)}
+    .appbar .actions{display:flex;align-items:center;gap:var(--sp-2)}
+    .appbar .btn--curate{padding:0 var(--sp-4);min-height:40px;font-size:var(--size-xs)}
+
+    main{max-width:1800px;margin:0 auto}
+
+    /* ─── Quick nav: jumps the page to a rail, doesn't gate content ─── */
+    .quicknav-wrap{position:relative;padding:var(--sp-3) 0}
+    .quicknav-wrap::before,.quicknav-wrap::after{
+      content:"";position:absolute;top:0;bottom:0;width:32px;z-index:2;pointer-events:none}
+    .quicknav-wrap::before{left:0;background:linear-gradient(to right,var(--stock-base),transparent)}
+    .quicknav-wrap::after{right:0;background:linear-gradient(to left,var(--stock-base),transparent)}
+    .quicknav{display:flex;gap:var(--sp-2);overflow-x:auto;padding:2px var(--sp-4);
+      scroll-snap-type:x proximity;scrollbar-width:none}
+    .quicknav::-webkit-scrollbar{display:none}
+    .quicknav .chip{scroll-snap-align:start;flex:none}
+
+    /* ─── Hero ─── */
+    .hero{position:relative;margin:0 var(--sp-4) var(--sp-6);border-radius:var(--r-xl);overflow:hidden;
+      aspect-ratio:16/8;background:var(--stock-raised)}
+    .hero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+    .hero .scrim{position:absolute;inset:0;
+      background:linear-gradient(to top,rgba(9,8,20,.95) 10%,rgba(9,8,20,.4) 55%,rgba(9,8,20,.1) 100%),
+                 linear-gradient(to right,rgba(9,8,20,.55) 0%,transparent 55%)}
+    .hero .content{position:absolute;left:0;right:0;bottom:0;padding:var(--sp-6) var(--sp-5);
+      display:flex;flex-direction:column;gap:var(--sp-3);max-width:720px}
+    .hero .eyebrow{display:flex;align-items:center;gap:var(--sp-2)}
+    .hero h1{font-size:clamp(1.5rem,4.5vw,2.75rem);text-shadow:0 4px 20px rgba(0,0,0,.6)}
+    .hero .meta{color:var(--text-secondary);font-size:var(--size-sm)}
+    .hero .cta-row{display:flex;gap:var(--sp-3);margin-top:var(--sp-2)}
+    .hero-skeleton{aspect-ratio:16/8;margin:0 var(--sp-4) var(--sp-6);border-radius:var(--r-xl)}
+    @media (max-width:640px){
+      .hero{aspect-ratio:3/4;margin:0 var(--sp-3) var(--sp-5);border-radius:var(--r-lg)}
+      .hero-skeleton{aspect-ratio:3/4;margin:0 var(--sp-3) var(--sp-5);border-radius:var(--r-lg)}
+      .hero .content{padding:var(--sp-4)}
+    }
+
+    /* ─── Rails ─── */
+    .rail{margin-bottom:var(--sp-6)}
+    .rail-head{display:flex;align-items:center;justify-content:space-between;
+      padding:0 var(--sp-4);margin-bottom:var(--sp-3)}
+    .rail-head h2{font-size:var(--size-lg);display:flex;align-items:center;gap:var(--sp-2)}
+    .rail-nav{display:none;gap:var(--sp-2)}
+    @media (hover:hover) and (pointer:fine){.rail-nav{display:flex}}
+    .rail-scroll-outer{position:relative}
+    .rail-scroll-outer::before,.rail-scroll-outer::after{
+      content:"";position:absolute;top:0;bottom:0;width:40px;z-index:2;pointer-events:none}
+    .rail-scroll-outer::before{left:0;background:linear-gradient(to right,var(--stock-base),transparent)}
+    .rail-scroll-outer::after{right:0;background:linear-gradient(to left,var(--stock-base),transparent)}
+    .rail-scroller{display:flex;gap:var(--sp-3);overflow-x:auto;padding:0 var(--sp-4) var(--sp-2);
+      scroll-snap-type:x proximity;scroll-behavior:smooth;scrollbar-width:none}
+    .rail-scroller::-webkit-scrollbar{display:none}
+
+    .rcard{flex:none;width:250px;cursor:pointer;scroll-snap-align:start}
+    .rcard .art{aspect-ratio:16/9;width:100%;border-radius:var(--r-md);background:var(--stock-raised-2)}
+    .rcard .art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+      transition:transform var(--motion-base)}
+    .rcard:hover .art img{transform:scale(1.06)}
+    .rcard .art .badge--pink{position:absolute;top:var(--sp-2);right:var(--sp-2)}
+    .rcard .art .logo{position:absolute;bottom:var(--sp-2);left:var(--sp-2);width:28px;height:28px;
+      border-radius:var(--r-sm);background:rgba(18,16,38,.75);object-fit:contain;padding:4px;z-index:2}
+    .rcard .body{padding:var(--sp-2) 2px 0}
+    .rcard .title{font-family:var(--font-display);font-weight:700;font-size:var(--size-sm);
+      line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .rcard .sub{font-family:var(--font-data);font-size:11px;letter-spacing:.04em;
+      color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+    @media (max-width:640px){.rcard{width:198px}}
+
+    /* ─── Search overlay ─── */
+    #searchOverlay{position:fixed;inset:0;background:var(--stock-base);z-index:90;display:none;
+      flex-direction:column;padding:var(--sp-4)}
+    #searchOverlay .bar{display:flex;gap:var(--sp-3);align-items:center;margin-bottom:var(--sp-5)}
+    #searchOverlay .field{flex:1}
+    #searchResults{flex:1;overflow-y:auto;display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:var(--sp-3);align-content:start}
+
+    #toastHost{padding-bottom:env(safe-area-inset-bottom)}
 
     /* ─── Player ─── */
     #player-overlay{display:none;position:fixed;inset:0;background:var(--stock-base);
@@ -109,26 +131,40 @@
     </svg>
     NUVIO SPORTS
   </div>
-  <a href="/configure" class="btn btn--curate">Configure</a>
+  <div class="actions">
+    <button class="btn btn--icon btn--secondary" aria-label="Search" onclick="openSearch()">
+      <svg width="20" height="20"><use href="#i-search"/></svg>
+    </button>
+    <a href="/configure" class="btn btn--curate">Configure</a>
+  </div>
 </header>
 
 <main>
-  <div class="filterbar">
-    <div class="chipscroller">
-      <div class="chiprow" id="tabs" role="tablist" aria-label="Sport categories">
-        <span class="t-secondary" style="padding:var(--sp-2) 0">Loading categories&hellip;</span>
-      </div>
-    </div>
-    <div class="field search">
-      <svg width="20" height="20"><use href="#i-search"/></svg>
-      <label class="label" for="searchInput" style="position:absolute;left:-9999px">Search matches</label>
-      <input type="text" id="searchInput" class="input" placeholder="Search matches, teams&hellip;">
+  <div class="quicknav-wrap">
+    <div class="quicknav" id="quicknav" role="tablist" aria-label="Jump to sport">
+      <span class="t-secondary" style="padding:var(--sp-2) 0">Loading&hellip;</span>
     </div>
   </div>
-  <div class="grid" id="grid"></div>
+
+  <div id="heroSlot"><div class="hero-skeleton skeleton"></div></div>
+
+  <div id="rails"></div>
 </main>
 
 <div id="toastHost" aria-live="polite"></div>
+
+<div id="searchOverlay">
+  <div class="bar">
+    <div class="field search" style="margin:0">
+      <svg width="20" height="20"><use href="#i-search"/></svg>
+      <input type="text" id="searchInput" class="input" placeholder="Search matches, teams&hellip;" autocomplete="off">
+    </div>
+    <button class="btn btn--icon btn--secondary" aria-label="Close search" onclick="closeSearch()">
+      <svg width="20" height="20"><use href="#i-x"/></svg>
+    </button>
+  </div>
+  <div id="searchResults"></div>
+</div>
 
 <div id="player-overlay">
   <button id="close-btn" class="btn btn--icon btn--secondary" aria-label="Close player" onclick="closePlayer()">
@@ -156,7 +192,7 @@
 
 <script>
   let hls = null;
-  let currentMatches = [];
+  const allMatches = new Map(); // id -> meta, aggregated across every loaded catalog, backs search
 
   function toast(message, variant) {
     const host = document.getElementById('toastHost');
@@ -170,90 +206,8 @@
     setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 200ms'; setTimeout(() => el.remove(), 220); }, 3800);
   }
 
-  function skeletonGrid(count) {
-    const grid = document.getElementById('grid');
-    grid.innerHTML = '';
-    for (let i = 0; i < count; i++) {
-      const el = document.createElement('div');
-      el.className = 'card match';
-      el.innerHTML = `
-        <div class="art skeleton" style="aspect-ratio:16/9"></div>
-        <div style="padding:var(--sp-3)">
-          <div class="skeleton" style="height:14px;width:70%;margin-bottom:8px"></div>
-          <div class="skeleton" style="height:11px;width:45%"></div>
-        </div>`;
-      grid.appendChild(el);
-    }
-  }
-
-  async function loadTabs() {
-    try {
-      const res = await fetch('/manifest.json');
-      const manifest = await res.json();
-      const tabsContainer = document.getElementById('tabs');
-      tabsContainer.innerHTML = '';
-
-      let firstCatalog = null;
-      let firstChip = null;
-
-      manifest.catalogs.forEach((catalog) => {
-        if (catalog.type !== 'tv' || catalog.id === 'nuvio_sports_teams') return;
-        if (!firstCatalog) firstCatalog = catalog.id;
-
-        const chip = document.createElement('button');
-        chip.className = 'chip';
-        chip.setAttribute('role', 'tab');
-        chip.setAttribute('aria-pressed', 'false');
-        chip.innerText = catalog.name.replace('nuvio ', '').replace('Nuvio ', '');
-        chip.onclick = () => loadCatalog(catalog.id, chip);
-        tabsContainer.appendChild(chip);
-
-        if (!firstChip) firstChip = chip;
-      });
-
-      if (firstCatalog && firstChip) loadCatalog(firstCatalog, firstChip);
-    } catch (err) {
-      console.error('Failed to load manifest', err);
-      document.getElementById('tabs').innerHTML = '<span style="color:var(--sem-danger)">Failed to load categories.</span>';
-      toast('Could not reach the addon server.', 'danger');
-    }
-  }
-
-  async function loadCatalog(catalogId, chipEl) {
-    if (chipEl) {
-      document.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', 'false'));
-      chipEl.setAttribute('aria-pressed', 'true');
-      chipEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-    }
-
-    document.getElementById('searchInput').value = '';
-    skeletonGrid(8);
-
-    try {
-      const res = await fetch(`/catalog/tv/${catalogId}.json`);
-      const data = await res.json();
-      currentMatches = data.metas || [];
-      renderGrid(currentMatches);
-    } catch (err) {
-      console.error(err);
-      document.getElementById('grid').innerHTML = '';
-      toast('Failed to load this catalog.', 'danger');
-    }
-  }
-
-  document.getElementById('searchInput').addEventListener('input', (e) => {
-    const query = e.target.value.toLowerCase();
-    const filtered = currentMatches.filter(meta =>
-      meta.name.toLowerCase().includes(query) ||
-      (meta.description && meta.description.toLowerCase().includes(query))
-    );
-    renderGrid(filtered);
-  });
-
-  // Descriptions come as newline-separated "Label: value" pairs (League,
-  // Category, Status). Status is dropped since the LIVE badge already
-  // covers it; League/Category become a compact subtitle + badge instead
-  // of a wall of raw text.
+  // Descriptions arrive as newline-separated "Label: value" lines (League,
+  // Category, Status). Status is dropped since the LIVE badge covers it.
   function parseMeta(desc) {
     const out = {};
     (desc || '').split('\n').forEach(line => {
@@ -263,45 +217,171 @@
     return out;
   }
 
-  function renderGrid(metas) {
-    const grid = document.getElementById('grid');
-    grid.innerHTML = '';
+  function isLiveMeta(meta) { return meta.name.includes('🔴'); }
+  function cleanTitle(meta) { return meta.name.replace('🔴 [LIVE] ', ''); }
 
-    if (!metas || metas.length === 0) {
-      grid.innerHTML = `
-        <div class="empty">
-          <div class="title">No matches here right now.</div>
-          <div class="sub">Try another category, or check back closer to kickoff.</div>
-        </div>`;
+  function rcardHTML(meta) {
+    const isLive = isLiveMeta(meta);
+    const { league, category } = parseMeta(meta.description);
+    return `
+      <div class="rcard" onclick="fetchAndPlay('${meta.id.replace(/'/g, "\\'")}')">
+        <div class="art">
+          <img src="${meta.poster || meta.background}" loading="lazy"
+               onerror="this.src='${meta.background || ''}'; this.onerror=null;">
+          ${meta.logo ? `<img class="logo" src="${meta.logo}">` : ''}
+          ${isLive ? '<span class="badge badge--pink">Live</span>' : ''}
+        </div>
+        <div class="body">
+          <div class="title">${cleanTitle(meta)}</div>
+          <div class="sub">${league || category || ''}</div>
+        </div>
+      </div>`;
+  }
+
+  function railSkeleton(count) {
+    return Array.from({ length: count }).map(() => `
+      <div class="rcard">
+        <div class="art skeleton"></div>
+        <div class="body">
+          <div class="skeleton" style="height:12px;width:85%;margin-bottom:6px"></div>
+          <div class="skeleton" style="height:10px;width:50%"></div>
+        </div>
+      </div>`).join('');
+  }
+
+  function renderHero(meta) {
+    const slot = document.getElementById('heroSlot');
+    if (!meta) { slot.innerHTML = ''; return; }
+    const isLive = isLiveMeta(meta);
+    const { league, category } = parseMeta(meta.description);
+    slot.innerHTML = `
+      <div class="hero" onclick="fetchAndPlay('${meta.id.replace(/'/g, "\\'")}')">
+        <img src="${meta.background || meta.poster}" loading="eager">
+        <div class="scrim"></div>
+        <div class="content">
+          <div class="eyebrow">
+            ${isLive ? '<span class="badge badge--pink">Live</span>' : ''}
+            ${category ? `<span class="t-meta">${category}</span>` : ''}
+          </div>
+          <h1 class="t-display">${cleanTitle(meta)}</h1>
+          ${league ? `<div class="meta">${league}</div>` : ''}
+          <div class="cta-row">
+            <button class="btn btn--lg"><svg width="18" height="18"><use href="#i-play"/></svg> Watch now</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  async function loadEverything() {
+    let manifest;
+    try {
+      manifest = await (await fetch('/manifest.json')).json();
+    } catch (err) {
+      console.error('Failed to load manifest', err);
+      document.getElementById('rails').innerHTML = '<p style="padding:0 var(--sp-4);color:var(--sem-danger)">Failed to load categories.</p>';
+      toast('Could not reach the addon server.', 'danger');
       return;
     }
 
-    metas.forEach(meta => {
-      const card = document.createElement('div');
-      card.className = 'card card--interactive match';
-      card.onclick = () => fetchAndPlay(meta.id);
+    const catalogs = manifest.catalogs.filter(c => c.type === 'tv' && c.id !== 'nuvio_sports_teams');
+    const railsHost = document.getElementById('rails');
+    const quicknav = document.getElementById('quicknav');
+    railsHost.innerHTML = '';
+    quicknav.innerHTML = '';
 
-      const isLive = meta.name.includes('🔴');
-      const cleanName = meta.name.replace('🔴 [LIVE] ', '');
-      const { league, category } = parseMeta(meta.description);
+    catalogs.forEach(catalog => {
+      const label = catalog.name.replace('nuvio ', '').replace('Nuvio ', '');
+      const railId = 'rail-' + catalog.id;
 
-      card.innerHTML = `
-        <div class="art art--scrim">
-          <img class="bg" src="${meta.background}" onerror="this.style.display='none'" loading="lazy">
-          <img class="poster" src="${meta.poster}" onerror="this.src='https://raw.githubusercontent.com/stremio/stremio-addon-sdk/master/docs/api/images/stremio-logo.png'" loading="lazy">
-          ${meta.logo && meta.logo !== meta.poster ? `<img class="logo" src="${meta.logo}">` : ''}
-          ${category ? `<span class="badge badge--outline cat-badge">${category}</span>` : ''}
-          ${isLive ? '<span class="badge badge--pink">Live</span>' : ''}
-          <div class="play-hint"><span class="circle"><svg width="22" height="22"><use href="#i-play"/></svg></span></div>
-          <div class="info">
-            <div class="name">${cleanName}</div>
-            ${league ? `<div class="league">${league}</div>` : ''}
+      const chip = document.createElement('button');
+      chip.className = 'chip';
+      chip.innerText = label;
+      chip.onclick = () => document.getElementById(railId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      quicknav.appendChild(chip);
+
+      const section = document.createElement('section');
+      section.className = 'rail';
+      section.id = railId;
+      section.innerHTML = `
+        <div class="rail-head">
+          <h2>${label}</h2>
+          <div class="rail-nav">
+            <button class="btn btn--icon btn--secondary btn--sm" onclick="scrollRail('${railId}',-1)" aria-label="Scroll left">
+              <svg width="16" height="16" style="transform:rotate(180deg)"><use href="#i-chevron"/></svg>
+            </button>
+            <button class="btn btn--icon btn--secondary btn--sm" onclick="scrollRail('${railId}',1)" aria-label="Scroll right">
+              <svg width="16" height="16"><use href="#i-chevron"/></svg>
+            </button>
           </div>
         </div>
-      `;
-      grid.appendChild(card);
+        <div class="rail-scroll-outer">
+          <div class="rail-scroller" id="scroller-${catalog.id}">${railSkeleton(6)}</div>
+        </div>`;
+      railsHost.appendChild(section);
+    });
+
+    let heroSet = false;
+
+    catalogs.forEach(async (catalog) => {
+      try {
+        const res = await fetch(`/catalog/tv/${catalog.id}.json`);
+        const data = await res.json();
+        const metas = data.metas || [];
+        metas.forEach(m => allMatches.set(m.id, m));
+
+        const scroller = document.getElementById(`scroller-${catalog.id}`);
+        if (!scroller) return;
+
+        if (metas.length === 0) {
+          document.getElementById('rail-' + catalog.id).style.display = 'none';
+          return;
+        }
+        scroller.innerHTML = metas.map(rcardHTML).join('');
+
+        if (!heroSet) {
+          const liveOne = metas.find(isLiveMeta);
+          if (liveOne || catalog.id === catalogs[0].id) {
+            renderHero(liveOne || metas[0]);
+            heroSet = true;
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load catalog', catalog.id, err);
+        const scroller = document.getElementById(`scroller-${catalog.id}`);
+        if (scroller) scroller.innerHTML = '<span class="t-secondary" style="padding:0 var(--sp-2)">Failed to load.</span>';
+      }
     });
   }
+
+  function scrollRail(railId, dir) {
+    const scroller = document.querySelector(`#${railId} .rail-scroller`);
+    if (scroller) scroller.scrollBy({ left: dir * scroller.clientWidth * 0.8, behavior: 'smooth' });
+  }
+
+  function openSearch() {
+    document.getElementById('searchOverlay').style.display = 'flex';
+    const input = document.getElementById('searchInput');
+    input.value = '';
+    document.getElementById('searchResults').innerHTML = '<p class="t-secondary" style="grid-column:1/-1;padding:var(--sp-4) 0">Start typing to search everything that has loaded so far.</p>';
+    setTimeout(() => input.focus(), 50);
+  }
+  function closeSearch() { document.getElementById('searchOverlay').style.display = 'none'; }
+
+  document.getElementById('searchInput').addEventListener('input', (e) => {
+    const query = e.target.value.toLowerCase().trim();
+    const results = document.getElementById('searchResults');
+    if (!query) {
+      results.innerHTML = '<p class="t-secondary" style="grid-column:1/-1;padding:var(--sp-4) 0">Start typing to search everything that has loaded so far.</p>';
+      return;
+    }
+    const matches = Array.from(allMatches.values()).filter(meta =>
+      meta.name.toLowerCase().includes(query) ||
+      (meta.description && meta.description.toLowerCase().includes(query))
+    );
+    results.innerHTML = matches.length
+      ? matches.map(rcardHTML).join('')
+      : '<p class="t-secondary" style="grid-column:1/-1;padding:var(--sp-4) 0">No matches found.</p>';
+  });
 
   async function fetchAndPlay(id) {
     document.getElementById('player-overlay').style.display = 'flex';
@@ -313,9 +393,7 @@
     // Prime the media element synchronously within the click's gesture
     // context. Mobile browsers gate autoplay to calls made during (or very
     // soon after) a user gesture; the fetch below is async, so by the time
-    // the real stream is ready that window can have closed. Starting a
-    // muted play() now keeps the element "unlocked" for the real play()
-    // call later, which is why streams intermittently failed to start.
+    // the real stream is ready that window can have closed.
     try { video.muted = true; video.play().catch(() => {}); } catch (_) {}
 
     try {
@@ -385,9 +463,6 @@
     }
 
     const tryUnmuteAfterStart = () => {
-      // Muted autoplay is reliable everywhere; toggling mute off after
-      // playback has already begun is not gated the way starting playback
-      // is, so this quietly restores sound without needing a fresh tap.
       video.muted = false;
       if (video.muted) document.getElementById('unmuteHint').style.display = 'inline-flex';
     };
@@ -421,8 +496,7 @@
     if (hls) { hls.destroy(); hls = null; }
   }
 
-  skeletonGrid(8);
-  loadTabs();
+  loadEverything();
 </script>
 </body>
 </html>
