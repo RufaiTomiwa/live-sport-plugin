@@ -247,13 +247,14 @@ class Strims24Provider extends BaseProvider {
         for (const it of customItems) {
            const kickoff = it.start_ts ? it.start_ts * 1000 : now;
            const isLive = kickoff <= now && kickoff > now - FOUR_HOURS;
+           const cleanMatchId = it.match_id ? (it.match_id.startsWith('CUST:') ? it.match_id : `CUST:${it.match_id}`) : `CUST:${Date.now()}`;
            matches.push(new MatchEntity({
-              id: `CUST:${it.match_id}`,
+              id: cleanMatchId,
               title: it.name || it.match_id,
               category: this.normalizeCategory(sport),
               date: kickoff.toString(),
               popular: isLive ? '1' : '0',
-              sources: [{ source: 'strims24', id: `CUST:${it.match_id}`, original_sport: sport }]
+              sources: [{ source: 'strims24', id: cleanMatchId, original_sport: sport }]
             }));
         }
       }
@@ -379,13 +380,14 @@ class Strims24Provider extends BaseProvider {
 
   async resolveStream(sourceId, matchCategory, matchTitle) {
     try {
-      const isFs = sourceId.startsWith('FS:');
-      const isCh = sourceId.startsWith('CH:');
-      const cleanId = sourceId.replace(/^(FS:|CUST:|CH:)/, '');
+      const normalizedSourceId = String(sourceId).replace(/^(CUST:)+/, 'CUST:').replace(/^(FS:)+/, 'FS:').replace(/^(CH:)+/, 'CH:');
+      const isFs = normalizedSourceId.startsWith('FS:');
+      const isCh = normalizedSourceId.startsWith('CH:');
+      const cleanId = normalizedSourceId.replace(/^(FS:|CUST:|CH:)/, '');
 
       let dbDetail = null;
       if (!isCh) {
-          const dbDetailRes = await this.fetchData.fire(`${this.baseUrl}/api/v1/match/${sourceId}`).catch(() => null);
+          const dbDetailRes = await this.fetchData.fire(`${this.baseUrl}/api/v1/match/${normalizedSourceId}`).catch(() => null);
           if (dbDetailRes && dbDetailRes.status === 200) dbDetail = await dbDetailRes.json();
       }
 
