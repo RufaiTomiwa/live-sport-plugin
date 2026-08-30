@@ -313,7 +313,12 @@
   }
 
   function isLiveMeta(meta) { return meta.name.includes('🔴'); }
-  function cleanTitle(meta) { return meta.name.replace('🔴 [LIVE] ', ''); }
+  // catalog.js actually prefixes with "🔴 LIVE: ", "📺 " (24/7 network), or
+  // "⏱️ " (upcoming) depending on match state - this used to look for a
+  // "🔴 [LIVE] " bracket format that the backend never actually produces,
+  // so titles always kept their raw prefix instead of showing cleanly
+  // next to the separate LIVE badge.
+  function cleanTitle(meta) { return meta.name.replace(/^(?:🔴 LIVE: |📺 |⏱️ )/, ''); }
 
   // ─── Sport identity: every sport carries its own signature color and
   // icon, used for the category tag, the card's edge accent, and the
@@ -836,16 +841,24 @@
     document.getElementById('loader').style.display = 'none';
 
     // "Web Player" style sources aren't a raw HLS URL we can hand to
-    // hls.js - they're a third-party embed page. Embed it through the
-    // backend's /watch proxy (the same CORS/referrer-safe wrapper the
-    // rest of the app already relies on) right inside this overlay.
+    // hls.js - they're a third-party embed page. Most providers already
+    // return externalUrl as a complete, absolute URL pointing at our own
+    // /watch proxy (built server-side, real embed baked into ?url=) - a
+    // handful (SportyHunter, CdnLiveTV, Streamic, BeinArabic,
+    // StreamSports99) hand back the raw third-party URL instead. Wrapping
+    // an already-wrapped URL in another /watch?url= nests a /watch page
+    // inside a /watch page, which was breaking playback for exactly the
+    // providers in the first group - some embeds' own referrer/frame
+    // checks don't tolerate being doubly framed.
     if (streamObj && streamObj.externalUrl) {
       video.style.display = 'none';
       video.pause();
       video.src = '';
       document.getElementById('liveEdgeBtn').style.display = 'none'; // no seekable API access into a cross-origin embed
       iframe.style.display = 'block';
-      iframe.src = `/watch?url=${encodeURIComponent(streamObj.externalUrl)}&title=${encodeURIComponent(currentMatchTitle)}`;
+      iframe.src = /^https?:\/\/[^/]+\/watch\?/.test(streamObj.externalUrl)
+        ? streamObj.externalUrl
+        : `/watch?url=${encodeURIComponent(streamObj.externalUrl)}&title=${encodeURIComponent(currentMatchTitle)}`;
       return;
     }
 
