@@ -782,6 +782,27 @@
     document.getElementById('unmuteHint').style.display = 'none';
   }
 
+  // Several providers (Streamed.pk, WatchFooty, CDNLiveTV, Streamic,
+  // StreamSports99, SportyHunter) mark their streams notWebReady and attach
+  // a Referer/Origin the origin CDN requires - that's metadata for native
+  // clients that can set arbitrary request headers (the official Stremio
+  // app). A browser's fetch/<video> can never override its own Referer, so
+  // handing these URLs straight to hls.js hits a 403 the player just reads
+  // as a stall. The resolver already has a route built exactly for this -
+  // it fetches server-side with the spoofed headers and relays the result.
+  function resolveStreamUrl(url, streamObj) {
+    const headers = streamObj && streamObj.behaviorHints && streamObj.behaviorHints.proxyHeaders
+      ? streamObj.behaviorHints.proxyHeaders.request || {}
+      : {};
+    const needsProxy = (streamObj && streamObj.behaviorHints && streamObj.behaviorHints.notWebReady) || headers.Referer || headers.Origin;
+    if (!needsProxy) return url;
+
+    const params = new URLSearchParams({ url });
+    if (headers.Referer) params.set('referer', headers.Referer);
+    if (headers.Origin) params.set('origin', headers.Origin);
+    return `/api/hls/playlist.m3u8?${params.toString()}`;
+  }
+
   function playStreamUrl(url, streamObj = null) {
     const video = document.getElementById('video');
     const iframe = document.getElementById('webplayer');
@@ -801,6 +822,8 @@
       iframe.src = `/watch?url=${encodeURIComponent(streamObj.externalUrl)}&title=${encodeURIComponent(currentMatchTitle)}`;
       return;
     }
+
+    if (url) url = resolveStreamUrl(url, streamObj);
 
     iframe.style.display = 'none';
     iframe.src = 'about:blank';
@@ -841,6 +864,26 @@
         video.play().then(tryUnmuteAfterStart).catch(() => {
           document.getElementById('unmuteHint').style.display = 'inline-flex';
         });
+      });
+
+      // These are scraped, often-flaky CDNs - a dropped segment or a
+      // transient network error used to just stall the video forever with
+      // no recovery attempt at all. hls.js can recover most of these on
+      // its own if asked to; only truly fatal, unrecoverable errors should
+      // give up and point the viewer at the switch-source button.
+      let hlsNetworkRetries = 0;
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        if (!data.fatal) return;
+        console.warn('[hls] fatal error', data.type, data.details);
+        if (data.type === Hls.ErrorTypes.NETWORK_ERROR && hlsNetworkRetries < 3) {
+          hlsNetworkRetries++;
+          hls.startLoad();
+        } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+          hls.recoverMediaError();
+        } else {
+          toast('This stream stopped unexpectedly. Try switching sources.', 'danger');
+          hls.destroy();
+        }
       });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = url;
