@@ -4,170 +4,176 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Nuvio Live Sports</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cg style='mix-blend-mode:screen'%3E%3Crect x='2' y='8' width='24' height='24' rx='6' fill='%23FF4FA3'/%3E%3Crect x='14' y='8' width='24' height='24' rx='6' fill='%235B86FF'/%3E%3C/g%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='17' fill='none' stroke='%23FF2A3F' stroke-width='4'/%3E%3Ccircle cx='20' cy='20' r='8' fill='%23FF2A3F'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/sleeve.css">
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/pulse.css">
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <style>
     body{
       padding-bottom:env(safe-area-inset-bottom);
-      background-image:radial-gradient(circle at 50% 0%,rgba(255,79,163,.06),transparent 40%);
+      background-image:radial-gradient(ellipse at 50% -10%,rgba(255,42,63,.08),transparent 45%);
     }
     .appbar{padding:var(--sp-3) var(--sp-4)}
-    .appbar .brand{font-size:clamp(var(--size-md),4vw,var(--size-lg));gap:var(--sp-2)}
+    .appbar .brand{font-size:clamp(var(--size-md),4vw,var(--size-xl))}
     .appbar .actions{display:flex;align-items:center;gap:var(--sp-2)}
-    .appbar .btn--curate{padding:0 var(--sp-4);min-height:40px;font-size:var(--size-xs)}
+    .appbar .btn{padding:0 var(--sp-4);min-height:40px;font-size:var(--size-xs)}
 
     main{max-width:1800px;margin:0 auto}
 
-    /* ─── Quick nav: jumps the page to a rail, doesn't gate content ─── */
-    .quicknav-wrap{position:relative;padding:var(--sp-3) 0}
-    .quicknav-wrap::before,.quicknav-wrap::after{
-      content:"";position:absolute;top:0;bottom:0;width:32px;z-index:2;pointer-events:none}
-    .quicknav-wrap::before{left:0;background:linear-gradient(to right,var(--stock-base),transparent)}
-    .quicknav-wrap::after{right:0;background:linear-gradient(to left,var(--stock-base),transparent)}
-    .quicknav{display:flex;gap:var(--sp-2);overflow-x:auto;padding:2px var(--sp-4);
-      scroll-snap-type:x proximity;scrollbar-width:none}
-    .quicknav::-webkit-scrollbar{display:none}
-    .quicknav .chip{scroll-snap-align:start;flex:none}
+    /* ─── Live ticker: the signature broadcast device ─── */
+    .ticker-wrap{background:var(--bg-1);border-bottom:1px solid var(--line);overflow:hidden;
+      display:none;position:relative}
+    .ticker-wrap::before{content:"LIVE";font-family:var(--font-head);font-weight:800;font-size:var(--size-sm);
+      letter-spacing:.06em;background:var(--live);color:#fff;padding:var(--sp-2) var(--sp-4);
+      display:flex;align-items:center;flex:none;z-index:2;position:relative}
+    .ticker-track-outer{overflow:hidden;flex:1;-webkit-mask-image:linear-gradient(to right,transparent,#000 24px,#000 calc(100% - 24px),transparent);
+      mask-image:linear-gradient(to right,transparent,#000 24px,#000 calc(100% - 24px),transparent)}
+    .ticker-wrap{display:none;align-items:stretch}
+    .ticker-wrap.has-items{display:flex}
+    .ticker-track{display:flex;width:max-content;animation:tickerScroll 40s linear infinite}
+    .ticker-wrap:hover .ticker-track{animation-play-state:paused}
+    @keyframes tickerScroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+    .ticker-item{display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2) var(--sp-5);
+      cursor:pointer;white-space:nowrap;border-right:1px solid var(--line);flex:none}
+    .ticker-item:hover{background:var(--bg-2)}
+    .ticker-item .dot{width:6px;height:6px;border-radius:50%;background:var(--live);flex:none;animation:pulseLive 1.8s infinite}
+    .ticker-item .teams{font-family:var(--font-head);font-weight:700;font-size:var(--size-sm);text-transform:uppercase}
+    .ticker-item .cat{font-family:var(--font-mono);font-size:10px;color:var(--text-2);letter-spacing:.08em;text-transform:uppercase}
 
-    /* ─── Hero ─── */
-    .hero{position:relative;margin:0 var(--sp-4) var(--sp-6);border-radius:var(--r-xl);overflow:hidden;
-      aspect-ratio:16/8;background:var(--stock-raised)}
+    /* ─── Quick nav ─── */
+    .quicknav-wrap{position:relative;padding:var(--sp-3) 0}
+    .quicknav-wrap::before,.quicknav-wrap::after{content:"";position:absolute;top:0;bottom:0;width:32px;z-index:2;pointer-events:none}
+    .quicknav-wrap::before{left:0;background:linear-gradient(to right,var(--bg-0),transparent)}
+    .quicknav-wrap::after{right:0;background:linear-gradient(to left,var(--bg-0),transparent)}
+    .quicknav{display:flex;gap:var(--sp-2);overflow-x:auto;padding:2px var(--sp-4);scroll-snap-type:x proximity;scrollbar-width:none}
+    .quicknav::-webkit-scrollbar{display:none}
+    .quicknav .tab-pill{scroll-snap-align:start;flex:none}
+
+    /* ─── Hero / scorebug ─── */
+    .hero{position:relative;margin:0 var(--sp-4) var(--sp-6);border-radius:var(--r-lg);overflow:hidden;
+      aspect-ratio:16/7.5;background:var(--bg-1)}
     .hero .scrim{position:absolute;inset:0;
-      background:linear-gradient(to top,rgba(9,8,20,.95) 10%,rgba(9,8,20,.4) 55%,rgba(9,8,20,.1) 100%),
-                 linear-gradient(to right,rgba(9,8,20,.55) 0%,transparent 55%)}
+      background:linear-gradient(to top,rgba(8,9,11,.96) 8%,rgba(8,9,11,.5) 50%,rgba(8,9,11,.15) 100%),
+                 linear-gradient(to right,rgba(8,9,11,.5) 0%,transparent 60%)}
     .hero .content{position:absolute;left:0;right:0;bottom:0;padding:var(--sp-6) var(--sp-5);
-      display:flex;flex-direction:column;gap:var(--sp-3);max-width:720px}
-    .hero .eyebrow{display:flex;align-items:center;gap:var(--sp-2)}
+      display:flex;flex-direction:column;gap:var(--sp-3);max-width:900px}
+    .hero .eyebrow{display:flex;align-items:center;gap:var(--sp-3)}
+    .hero .matchup{display:flex;align-items:baseline;gap:var(--sp-4);flex-wrap:wrap}
+    .hero .matchup .team{font-family:var(--font-display);font-size:clamp(1.6rem,5vw,3.25rem);
+      text-shadow:0 4px 20px rgba(0,0,0,.6);line-height:.95}
+    .hero .matchup .vs{font-family:var(--font-mono);font-size:var(--size-md);color:var(--text-2)}
     .hero h1{font-size:clamp(1.5rem,4.5vw,2.75rem);text-shadow:0 4px 20px rgba(0,0,0,.6)}
-    .hero .meta{color:var(--text-secondary);font-size:var(--size-sm)}
+    .hero .meta{color:var(--text-2);font-size:var(--size-sm);font-family:var(--font-mono)}
     .hero .cta-row{display:flex;gap:var(--sp-3);margin-top:var(--sp-2)}
-    .hero-skeleton{aspect-ratio:16/8;margin:0 var(--sp-4) var(--sp-6);border-radius:var(--r-xl)}
+    .hero-skeleton{aspect-ratio:16/7.5;margin:0 var(--sp-4) var(--sp-6);border-radius:var(--r-lg)}
     @media (max-width:640px){
-      .hero{aspect-ratio:3/4;margin:0 var(--sp-3) var(--sp-5);border-radius:var(--r-lg)}
-      .hero-skeleton{aspect-ratio:3/4;margin:0 var(--sp-3) var(--sp-5);border-radius:var(--r-lg)}
+      .hero{aspect-ratio:3/4;margin:0 var(--sp-3) var(--sp-5);border-radius:var(--r-md)}
+      .hero-skeleton{aspect-ratio:3/4;margin:0 var(--sp-3) var(--sp-5);border-radius:var(--r-md)}
       .hero .content{padding:var(--sp-4)}
     }
 
     /* ─── Rails ─── */
     .rail{margin-bottom:var(--sp-6)}
-    .rail-head{display:flex;align-items:center;justify-content:space-between;
-      padding:0 var(--sp-4);margin-bottom:var(--sp-3)}
-    .rail-head h2{font-size:var(--size-lg);display:flex;align-items:center;gap:var(--sp-2)}
+    .rail-head{display:flex;align-items:center;justify-content:space-between;padding:0 var(--sp-4);margin-bottom:var(--sp-3)}
+    .rail-head h2{font-family:var(--font-head);font-weight:700;font-size:var(--size-xl);letter-spacing:.02em;
+      text-transform:uppercase;display:flex;align-items:center;gap:var(--sp-2)}
     .rail-nav{display:none;gap:var(--sp-2)}
     @media (hover:hover) and (pointer:fine){.rail-nav{display:flex}}
     .rail-scroll-outer{position:relative}
-    .rail-scroll-outer::before,.rail-scroll-outer::after{
-      content:"";position:absolute;top:0;bottom:0;width:40px;z-index:2;pointer-events:none}
-    .rail-scroll-outer::before{left:0;background:linear-gradient(to right,var(--stock-base),transparent)}
-    .rail-scroll-outer::after{right:0;background:linear-gradient(to left,var(--stock-base),transparent)}
+    .rail-scroll-outer::before,.rail-scroll-outer::after{content:"";position:absolute;top:0;bottom:0;width:40px;z-index:2;pointer-events:none}
+    .rail-scroll-outer::before{left:0;background:linear-gradient(to right,var(--bg-0),transparent)}
+    .rail-scroll-outer::after{right:0;background:linear-gradient(to left,var(--bg-0),transparent)}
     .rail-scroller{display:flex;gap:var(--sp-3);overflow-x:auto;padding:0 var(--sp-4) var(--sp-2);
       scroll-snap-type:x proximity;scroll-behavior:smooth;scrollbar-width:none}
     .rail-scroller::-webkit-scrollbar{display:none}
 
-    /* ─── Generated cover art ───────────────────────────────────────────
-       Scraped provider images range from a real match poster to a plain
-       black graphic with red text, so relying on them for the primary
-       visual read as inconsistent and cheap. Every card instead gets a
-       deterministic cover built from SLEEVE's own signature "Overprint"
-       motif (two ink blobs blended with mix-blend-mode:screen) plus a
-       sport-icon watermark and a grain texture - same match always
-       renders the same cover, no network fetch required. */
-    .cover{position:absolute;inset:0;overflow:hidden;background:var(--stock-raised-2);
-      isolation:isolate;transition:transform var(--motion-base)}
-    .rcard:hover .cover{transform:scale(1.06)}
-    .cover-blob{position:absolute;width:75%;aspect-ratio:1;border-radius:50%;
-      filter:blur(26px);mix-blend-mode:screen;transform:translate(-50%,-50%)}
-    .cover-icon{position:absolute;left:50%;top:50%;font-size:4.5rem;opacity:.24;z-index:1;
-      filter:drop-shadow(0 4px 14px rgba(0,0,0,.45));pointer-events:none;user-select:none}
-    .cover-grain{position:absolute;inset:0;z-index:2;pointer-events:none;opacity:.4;mix-blend-mode:overlay;
+    .rcard{flex:none;width:250px;cursor:pointer;scroll-snap-align:start;overflow:hidden;
+      border-left:3px solid var(--edge,var(--line-strong))}
+    .rcard .art{position:relative;overflow:hidden;aspect-ratio:16/9;width:100%;background:var(--bg-2)}
+    .rcard .art .badge--live{position:absolute;top:var(--sp-2);right:var(--sp-2)}
+    .rcard .art .cat-badge{position:absolute;top:var(--sp-2);left:var(--sp-2)}
+    .rcard .art img.logo{position:absolute;bottom:var(--sp-2);left:var(--sp-2);width:28px;height:28px;
+      border-radius:var(--r-xs);background:rgba(8,9,11,.75);object-fit:contain;padding:4px;z-index:2}
+    .rcard .body{padding:var(--sp-2) var(--sp-1) 0 var(--sp-3)}
+    .rcard .title{font-family:var(--font-head);font-weight:700;font-size:var(--size-md);letter-spacing:.01em;
+      text-transform:uppercase;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .rcard .sub{font-family:var(--font-mono);font-size:11px;letter-spacing:.04em;color:var(--text-2);
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+    @media (max-width:640px){.rcard{width:198px}}
+
+    /* ─── Generated cover art: bold diagonal sport-color block instead of
+       relying on scraped images, which range from a real poster to a
+       blank placeholder. Real crests/photos still layer on top when the
+       scraper actually has them (see coverOverlayHTML). ─── */
+    .cover{position:absolute;inset:0;overflow:hidden}
+    .cover-icon{position:absolute;left:50%;top:52%;font-size:4.5rem;opacity:.22;z-index:1;
+      filter:drop-shadow(0 4px 14px rgba(0,0,0,.5));pointer-events:none;user-select:none;color:#000}
+    .cover-grain{position:absolute;inset:0;z-index:2;pointer-events:none;opacity:.35;mix-blend-mode:overlay;
       background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
       background-size:120px 120px}
     .cover--hero .cover-icon{font-size:9rem}
-    .cover--hero .cover-blob{filter:blur(70px)}
 
-    /* Real assets layer on top of the generated backdrop when available -
-       club crests for a team fixture, or the provider's own poster/photo
-       for everything else (fight cards, motorsport, etc). The backdrop
-       stays underneath either way, so a failed image load just reveals
-       it again instead of a broken-image icon. */
     .cover-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
     .cover-teams{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:var(--sp-3)}
-    .cover-teams .badge-box{width:52px;height:52px;border-radius:var(--r-md);background:rgba(18,16,38,.55);
-      border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(4px);display:grid;place-items:center;
+    .cover-teams .badge-box{width:50px;height:50px;border-radius:var(--r-sm);background:rgba(8,9,11,.6);
+      border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(4px);display:grid;place-items:center;
       padding:7px;flex:none}
     .cover-teams .badge-box img{width:100%;height:100%;object-fit:contain}
-    .cover-teams .vs{font-family:var(--font-data);font-size:10px;letter-spacing:.25em;color:rgba(255,255,255,.6)}
-    .cover-teams--hero .badge-box{width:88px;height:88px;padding:12px}
+    .cover-teams .vs{font-family:var(--font-mono);font-size:10px;letter-spacing:.2em;color:rgba(255,255,255,.65)}
+    .cover-teams--hero .badge-box{width:84px;height:84px;padding:11px}
     .cover-teams--hero .vs{font-size:13px}
 
-    .rcard{flex:none;width:250px;cursor:pointer;scroll-snap-align:start}
-    .rcard .art{aspect-ratio:16/9;width:100%;border-radius:var(--r-md);background:var(--stock-raised-2)}
-    .rcard .art .badge--pink{position:absolute;top:var(--sp-2);right:var(--sp-2)}
-    .rcard .art .logo{position:absolute;bottom:var(--sp-2);left:var(--sp-2);width:28px;height:28px;
-      border-radius:var(--r-sm);background:rgba(18,16,38,.75);object-fit:contain;padding:4px;z-index:2}
-    .rcard .body{padding:var(--sp-2) 2px 0}
-    .rcard .title{font-family:var(--font-display);font-weight:700;font-size:var(--size-sm);
-      line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .rcard .sub{font-family:var(--font-data);font-size:11px;letter-spacing:.04em;
-      color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
-    @media (max-width:640px){.rcard{width:198px}}
-
     /* ─── Search overlay ─── */
-    #searchOverlay{position:fixed;inset:0;background:var(--stock-base);z-index:90;display:none;
-      flex-direction:column;padding:var(--sp-4)}
+    #searchOverlay{position:fixed;inset:0;background:var(--bg-0);z-index:90;display:none;flex-direction:column;padding:var(--sp-4)}
     #searchOverlay .bar{display:flex;gap:var(--sp-3);align-items:center;margin-bottom:var(--sp-5)}
     #searchOverlay .field{flex:1}
-    #searchResults{flex:1;overflow-y:auto;display:grid;
-      grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:var(--sp-3);align-content:start}
+    #searchResults{flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:var(--sp-3);align-content:start}
 
     #toastHost{padding-bottom:env(safe-area-inset-bottom)}
 
     /* ─── Source sheet ─── */
     .source-sheet{max-height:82vh;display:flex;flex-direction:column;padding-bottom:calc(var(--sp-5) + env(safe-area-inset-bottom))}
     .sheet-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:var(--sp-3)}
+    .sheet-head h3{font-family:var(--font-head);font-weight:700;font-size:var(--size-xl);text-transform:uppercase;margin:0}
     .source-filters{display:flex;gap:var(--sp-2);overflow-x:auto;padding-bottom:var(--sp-3);scrollbar-width:none;flex:none}
     .source-filters::-webkit-scrollbar{display:none}
     .sheet-scroll{overflow-y:auto;flex:1;margin:0 calc(var(--sp-4) * -1);padding:0 var(--sp-4)}
-    .source-group-label{font-family:var(--font-data);font-size:10px;letter-spacing:.12em;
-      text-transform:uppercase;color:var(--text-secondary);margin:var(--sp-4) 0 var(--sp-2)}
+    .source-group-label{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+      color:var(--text-2);margin:var(--sp-4) 0 var(--sp-2)}
     .source-group-label:first-child{margin-top:0}
-    .source-row{display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3);
-      border-radius:var(--r-md);background:var(--stock-raised-2);border:1px solid transparent;
-      cursor:pointer;transition:all var(--motion-fast);margin-bottom:var(--sp-2)}
-    .source-row:hover{border-color:var(--stock-line-strong)}
-    .source-row .icon{width:38px;height:38px;border-radius:var(--r-sm);background:rgba(255,255,255,.05);
+    .source-row{display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3);border-radius:var(--r-sm);
+      background:var(--bg-2);border:1px solid transparent;cursor:pointer;transition:all var(--fast);margin-bottom:var(--sp-2)}
+    .source-row:hover{border-color:var(--line-strong)}
+    .source-row .icon{width:38px;height:38px;border-radius:var(--r-xs);background:rgba(255,255,255,.05);
       display:grid;place-items:center;flex:none;font-size:18px}
     .source-row .meta{flex:1;min-width:0}
-    .source-row .lang{font-weight:600;font-size:var(--size-sm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .source-row .chan{font-size:var(--size-xs);color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+    .source-row .lang{font-family:var(--font-head);font-weight:700;font-size:var(--size-md);text-transform:uppercase;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .source-row .chan{font-size:var(--size-xs);color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
     .source-row .tags{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none}
-    .source-row .viewers{font-family:var(--font-data);font-size:11px;color:var(--text-secondary);
-      display:flex;align-items:center;gap:3px;white-space:nowrap}
+    .source-row .viewers{font-family:var(--font-mono);font-size:11px;color:var(--text-2);display:flex;align-items:center;gap:3px;white-space:nowrap}
     .source-row .actions{display:flex;gap:var(--sp-2);flex:none;margin-left:var(--sp-1)}
     .vlc-btn{text-decoration:none}
     .vlc-btn:hover{border-color:#ff8800}
 
     /* ─── Player ─── */
-    #player-overlay{display:none;position:fixed;inset:0;background:var(--stock-base);
-      z-index:100;flex-direction:column}
+    #player-overlay{display:none;position:fixed;inset:0;background:var(--bg-0);z-index:100;flex-direction:column}
     #close-btn{position:absolute;top:calc(var(--sp-4) + env(safe-area-inset-top));right:var(--sp-4);z-index:101}
-    #switch-btn{position:absolute;top:calc(var(--sp-4) + env(safe-area-inset-top));right:calc(var(--sp-4) + var(--tap-min) + var(--sp-2));z-index:101}
-    .live-edge-btn{position:absolute;bottom:calc(var(--sp-5) + env(safe-area-inset-bottom));left:var(--sp-4);z-index:5;
-      display:none;align-items:center;gap:var(--sp-2);background:rgba(18,16,38,.75);border-color:rgba(255,255,255,.2)}
-    .live-edge-btn .live-dot{width:8px;height:8px;border-radius:50%;background:var(--ink-pink);flex:none;animation:pulseBadge 2s infinite}
+    #switch-btn{position:absolute;top:calc(var(--sp-4) + env(safe-area-inset-top));right:calc(var(--sp-4) + var(--tap) + var(--sp-2));z-index:101}
     #video-container{width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative}
     video,#webplayer{width:100%;height:100%;max-width:1600px;background:#000;border:0}
-    @media (min-width:900px){video,#webplayer{max-height:88vh;border-radius:var(--r-lg)}}
+    @media (min-width:900px){video,#webplayer{max-height:88vh;border-radius:var(--r-md)}}
     .loader{position:absolute;display:flex;flex-direction:column;align-items:center;gap:var(--sp-4)}
-    .spinner{width:40px;height:40px;border:3px solid var(--stock-line-strong);border-top-color:var(--ink-pink);
+    .spinner{width:40px;height:40px;border:3px solid var(--line-strong);border-top-color:var(--live);
       border-radius:50%;animation:spin 1s linear infinite}
     @keyframes spin{to{transform:rotate(360deg)}}
     .unmute-hint{position:absolute;bottom:calc(var(--sp-6) + env(safe-area-inset-bottom));left:50%;
       transform:translateX(-50%);z-index:5;display:none;align-items:center;gap:var(--sp-2)}
+    .live-edge-btn{position:absolute;bottom:calc(var(--sp-5) + env(safe-area-inset-bottom));left:var(--sp-4);
+      z-index:5;display:none;align-items:center;gap:var(--sp-2);background:rgba(8,9,11,.75);border-color:rgba(255,255,255,.2)}
+    .live-edge-btn .live-dot{width:8px;height:8px;border-radius:50%;background:var(--live);flex:none;animation:pulseLive 1.8s infinite}
   </style>
 </head>
 <body>
@@ -193,20 +199,24 @@
 <header class="appbar">
   <div class="brand">
     <svg width="22" height="22" viewBox="0 0 40 40" aria-hidden="true">
-      <g style="mix-blend-mode:screen">
-        <rect x="2" y="8" width="24" height="24" rx="6" fill="#FF4FA3"/>
-        <rect x="14" y="8" width="24" height="24" rx="6" fill="#5B86FF"/>
-      </g>
+      <circle cx="20" cy="20" r="17" fill="none" stroke="#FF2A3F" stroke-width="4"/>
+      <circle cx="20" cy="20" r="8" fill="#FF2A3F"/>
     </svg>
     NUVIO SPORTS
   </div>
   <div class="actions">
-    <button class="btn btn--icon btn--secondary" aria-label="Search" onclick="openSearch()">
+    <button class="btn btn--icon btn--outline" aria-label="Search" onclick="openSearch()">
       <svg width="20" height="20"><use href="#i-search"/></svg>
     </button>
-    <a href="/configure" class="btn btn--curate">Configure</a>
+    <a href="/configure" class="btn">Configure</a>
   </div>
 </header>
+
+<div class="ticker-wrap" id="tickerWrap">
+  <div class="ticker-track-outer">
+    <div class="ticker-track" id="tickerTrack"></div>
+  </div>
+</div>
 
 <main>
   <div class="quicknav-wrap">
@@ -228,7 +238,7 @@
       <svg width="20" height="20"><use href="#i-search"/></svg>
       <input type="text" id="searchInput" class="input" placeholder="Search matches, teams&hellip;" autocomplete="off">
     </div>
-    <button class="btn btn--icon btn--secondary" aria-label="Close search" onclick="closeSearch()">
+    <button class="btn btn--icon btn--outline" aria-label="Close search" onclick="closeSearch()">
       <svg width="20" height="20"><use href="#i-x"/></svg>
     </button>
   </div>
@@ -236,23 +246,23 @@
 </div>
 
 <div id="player-overlay">
-  <button id="switch-btn" class="btn btn--icon btn--secondary" aria-label="Switch stream" onclick="backToSourceList()" style="display:none">
+  <button id="switch-btn" class="btn btn--icon btn--outline" aria-label="Switch stream" onclick="backToSourceList()" style="display:none">
     <svg width="20" height="20"><use href="#i-switch"/></svg>
   </button>
-  <button id="close-btn" class="btn btn--icon btn--secondary" aria-label="Close player" onclick="handleCloseFromPlayer()">
+  <button id="close-btn" class="btn btn--icon btn--outline" aria-label="Close player" onclick="handleCloseFromPlayer()">
     <svg width="20" height="20"><use href="#i-x"/></svg>
   </button>
   <div id="video-container">
     <div class="loader" id="loader">
       <div class="spinner"></div>
-      <span class="t-data">Loading stream&hellip;</span>
+      <span class="t-mono t-secondary">Loading stream&hellip;</span>
     </div>
     <video id="video" controls autoplay playsinline webkit-playsinline muted></video>
     <iframe id="webplayer" style="display:none" allow="autoplay; encrypted-media; fullscreen; picture-in-picture"></iframe>
     <button class="btn btn--sm unmute-hint" id="unmuteHint" onclick="unmuteVideo()">
       <svg width="16" height="16"><use href="#i-volume"/></svg> Tap to unmute
     </button>
-    <button class="btn btn--sm live-edge-btn" id="liveEdgeBtn" onclick="jumpToLiveEdge()" style="display:none">
+    <button class="btn btn--sm live-edge-btn" id="liveEdgeBtn" onclick="jumpToLiveEdge()">
       <span class="live-dot"></span> Go live
     </button>
   </div>
@@ -262,9 +272,9 @@
   <div class="sheet source-sheet">
     <div class="grabber"></div>
     <div class="sheet-head">
-      <h3 class="t-title" style="font-size:var(--size-xl);margin:0">Select a source</h3>
+      <h3>Select a source</h3>
       <div style="display:flex;align-items:center;gap:var(--sp-3)">
-        <span class="t-data" id="sourceCount"></span>
+        <span class="t-mono t-secondary" id="sourceCount"></span>
         <button class="btn btn--icon btn--ghost btn--sm" aria-label="Cancel" onclick="cancelFromSourceSheet()">
           <svg width="18" height="18"><use href="#i-x"/></svg>
         </button>
@@ -277,15 +287,15 @@
 
 <script>
   let hls = null;
-  const allMatches = new Map(); // id -> meta, aggregated across every loaded catalog, backs search
+  const allMatches = new Map(); // id -> meta, aggregated across every loaded catalog, backs search + ticker
 
   function toast(message, variant) {
     const host = document.getElementById('toastHost');
     const el = document.createElement('div');
-    el.className = 'toast' + (variant === 'danger' ? ' toast--danger' : ' toast--pink');
+    el.className = 'toast' + (variant === 'danger' ? ' toast--danger' : ' toast--ok');
     el.setAttribute('role', variant === 'danger' ? 'alert' : 'status');
     const icon = variant === 'danger' ? 'i-alert' : 'i-check';
-    const color = variant === 'danger' ? 'var(--sem-danger)' : 'var(--ink-pink)';
+    const color = variant === 'danger' ? 'var(--live)' : 'var(--sp-football)';
     el.innerHTML = `<svg width="18" height="18" style="color:${color};flex:none"><use href="#${icon}"/></svg><span>${message}</span>`;
     host.appendChild(el);
     setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 200ms'; setTimeout(() => el.remove(), 220); }, 3800);
@@ -305,54 +315,47 @@
   function isLiveMeta(meta) { return meta.name.includes('🔴'); }
   function cleanTitle(meta) { return meta.name.replace('🔴 [LIVE] ', ''); }
 
-  // ─── Generated cover art ────────────────────────────────────────────
-  // A tiny deterministic hash so the same match always gets the same
-  // cover across reloads/devices, without needing to persist anything.
+  // ─── Sport identity: every sport carries its own signature color and
+  // icon, used for the category tag, the card's edge accent, and the
+  // generated cover art. Reused everywhere via CSS custom properties
+  // rather than duplicating hex values in JS.
+  const SPORT_ICONS = {
+    football:'⚽', basketball:'🏀', cricket:'🏏', tennis:'🎾', hockey:'🏒',
+    baseball:'⚾', motorsport:'🏎️', mma:'🥊', golf:'⛳', rugby:'🏉',
+    american_football:'🏈', darts:'🎯', other:'🏆'
+  };
+  const SPORT_ALIASES = { soccer:'football', racing:'motorsport', boxing:'mma', nfl:'american_football' };
+  function sportKey(category) {
+    let key = (category || '').toLowerCase().replace(/\s+/g, '_');
+    key = SPORT_ALIASES[key] || key;
+    return SPORT_ICONS[key] ? key : 'other';
+  }
+  function sportColorVar(category) { return `var(--sp-${sportKey(category)})`; }
+  function sportIcon(category) { return SPORT_ICONS[sportKey(category)]; }
+
   function hashStr(str) {
     let h = 0;
     for (let i = 0; i < str.length; i++) { h = (Math.imul(h, 31) + str.charCodeAt(i)) | 0; }
     return Math.abs(h);
   }
 
-  const COVER_BLOB_PAIRS = [
-    ['var(--ink-pink)', 'var(--ink-blue)'],
-    ['var(--ink-pink)', 'var(--sem-warning)'],
-    ['var(--ink-blue)', 'var(--sem-danger)'],
-    ['var(--sem-warning)', 'var(--ink-blue)'],
-    ['var(--ink-pink)', 'var(--ink-overprint)'],
-    ['var(--ink-overprint)', 'var(--sem-warning)']
-  ];
-
-  const SPORT_ICONS = {
-    football: '⚽', soccer: '⚽', basketball: '🏀', cricket: '🏏', tennis: '🎾',
-    hockey: '🏒', baseball: '⚾', motorsport: '🏎️', racing: '🏎️', mma: '🥊',
-    boxing: '🥊', golf: '⛳', rugby: '🏉', american_football: '🏈', nfl: '🏈',
-    darts: '🎯'
-  };
-  function iconForCategory(category) {
-    const key = (category || '').toLowerCase().replace(/\s+/g, '_');
-    return SPORT_ICONS[key] || '🏆';
-  }
-
-  // Two overlapping blobs blended with mix-blend-mode:screen - the same
-  // "Overprint" idea that's the SLEEVE system's own signature component -
-  // plus a sport-icon watermark and a grain texture. Position/rotation/
-  // color pair are all derived from the match id, so nothing is random
-  // between renders but every match still looks distinct.
+  // Bold diagonal sport-color block instead of a scraped image that might
+  // be a real poster or might be a blank placeholder - consistent and
+  // instantly recognizable by sport, no network dependency. Real
+  // crests/photos still layer on top when the scraper actually has them.
   function coverHTML(meta, opts = {}) {
     const { category } = parseMeta(meta.description);
-    const icon = iconForCategory(category);
+    const icon = sportIcon(category);
+    const color = sportColorVar(category);
     const h = hashStr(meta.id || meta.name || '');
-    const [colorA, colorB] = COVER_BLOB_PAIRS[h % COVER_BLOB_PAIRS.length];
-    const ax = 15 + (h % 30), ay = 10 + ((h >> 3) % 35);
-    const bx = 55 + ((h >> 5) % 30), by = 30 + ((h >> 7) % 40);
-    const rot = (h % 40) - 20;
+    const angle = 95 + (h % 50);
+    const iconRot = (h % 30) - 15;
+    const split = 34 + (h % 12);
 
     return `
-      <div class="cover${opts.hero ? ' cover--hero' : ''}">
-        <span class="cover-blob" style="background:${colorA};left:${ax}%;top:${ay}%"></span>
-        <span class="cover-blob" style="background:${colorB};left:${bx}%;top:${by}%"></span>
-        <span class="cover-icon" style="transform:translate(-50%,-50%) rotate(${rot}deg)">${icon}</span>
+      <div class="cover${opts.hero ? ' cover--hero' : ''}"
+           style="background:linear-gradient(${angle}deg, ${color} 0%, ${color} ${split}%, var(--bg-2) ${split}%, var(--bg-2) 100%)">
+        <span class="cover-icon" style="transform:translate(-50%,-50%) rotate(${iconRot}deg)">${icon}</span>
         <div class="cover-grain"></div>
       </div>`;
   }
@@ -360,8 +363,7 @@
   // Real assets take priority over the generated backdrop: club crests
   // for a team fixture (when the scraper actually captured them), else
   // the provider's own poster/photo. Falls through to nothing (leaving
-  // just the generated cover) when neither exists - never the old
-  // black-box-with-red-text synthetic placeholder.
+  // just the generated cover) when neither exists.
   function coverOverlayHTML(meta, opts = {}) {
     if (meta.team1 && meta.team1.logo && meta.team2 && meta.team2.logo) {
       return `
@@ -382,12 +384,13 @@
     const isLive = isLiveMeta(meta);
     const { league, category } = parseMeta(meta.description);
     return `
-      <div class="rcard" onclick="fetchAndPlay('${meta.id.replace(/'/g, "\\'")}', '${cleanTitle(meta).replace(/'/g, "\\'")}')">
+      <div class="card card--interactive rcard" style="--edge:${sportColorVar(category)}" onclick="fetchAndPlay('${meta.id.replace(/'/g, "\\'")}', '${cleanTitle(meta).replace(/'/g, "\\'")}')">
         <div class="art">
           ${coverHTML(meta)}
           ${coverOverlayHTML(meta)}
+          ${category ? `<span class="badge badge--glass cat-badge">${category}</span>` : ''}
+          ${isLive ? '<span class="badge badge--live">Live</span>' : ''}
           ${meta.logo ? `<img class="logo" src="${meta.logo}">` : ''}
-          ${isLive ? '<span class="badge badge--pink">Live</span>' : ''}
         </div>
         <div class="body">
           <div class="title">${cleanTitle(meta)}</div>
@@ -398,7 +401,7 @@
 
   function railSkeleton(count) {
     return Array.from({ length: count }).map(() => `
-      <div class="rcard">
+      <div class="card rcard">
         <div class="art skeleton"></div>
         <div class="body">
           <div class="skeleton" style="height:12px;width:85%;margin-bottom:6px"></div>
@@ -412,17 +415,21 @@
     if (!meta) { slot.innerHTML = ''; return; }
     const isLive = isLiveMeta(meta);
     const { league, category } = parseMeta(meta.description);
+    const hasTeams = meta.team1 && meta.team1.name && meta.team2 && meta.team2.name;
+
     slot.innerHTML = `
-      <div class="hero" onclick="fetchAndPlay('${meta.id.replace(/'/g, "\\'")}', '${cleanTitle(meta).replace(/'/g, "\\'")}')">
+      <div class="hero" style="--edge:${sportColorVar(category)}" onclick="fetchAndPlay('${meta.id.replace(/'/g, "\\'")}', '${cleanTitle(meta).replace(/'/g, "\\'")}')">
         ${coverHTML(meta, { hero: true })}
         ${coverOverlayHTML(meta, { hero: true })}
         <div class="scrim"></div>
         <div class="content">
           <div class="eyebrow">
-            ${isLive ? '<span class="badge badge--pink">Live</span>' : ''}
-            ${category ? `<span class="t-meta">${category}</span>` : ''}
+            ${isLive ? '<span class="badge badge--live">Live</span>' : ''}
+            ${category ? `<span class="badge" style="background:${sportColorVar(category)};color:#000">${category}</span>` : ''}
           </div>
-          <h1 class="t-display">${cleanTitle(meta)}</h1>
+          ${hasTeams
+            ? `<div class="matchup"><span class="team t-display">${meta.team1.name}</span><span class="vs">VS</span><span class="team t-display">${meta.team2.name}</span></div>`
+            : `<h1 class="t-display">${cleanTitle(meta)}</h1>`}
           ${league ? `<div class="meta">${league}</div>` : ''}
           <div class="cta-row">
             <button class="btn btn--lg"><svg width="18" height="18"><use href="#i-play"/></svg> Watch now</button>
@@ -431,13 +438,37 @@
       </div>`;
   }
 
+  function updateTicker() {
+    const wrap = document.getElementById('tickerWrap');
+    const track = document.getElementById('tickerTrack');
+    const live = Array.from(allMatches.values()).filter(isLiveMeta).slice(0, 24);
+
+    if (live.length === 0) { wrap.classList.remove('has-items'); return; }
+
+    const itemsHTML = live.map(meta => {
+      const { category } = parseMeta(meta.description);
+      const hasTeams = meta.team1 && meta.team1.name && meta.team2 && meta.team2.name;
+      const label = hasTeams ? `${meta.team1.name} vs ${meta.team2.name}` : cleanTitle(meta);
+      return `
+        <div class="ticker-item" onclick="fetchAndPlay('${meta.id.replace(/'/g, "\\'")}', '${cleanTitle(meta).replace(/'/g, "\\'")}')">
+          <span class="dot"></span>
+          <span class="teams">${label}</span>
+          ${category ? `<span class="cat">${category}</span>` : ''}
+        </div>`;
+    }).join('');
+
+    // Duplicated once so the marquee loop (-50%) is seamless.
+    track.innerHTML = itemsHTML + itemsHTML;
+    wrap.classList.add('has-items');
+  }
+
   async function loadEverything() {
     let manifest;
     try {
       manifest = await (await fetch('/manifest.json')).json();
     } catch (err) {
       console.error('Failed to load manifest', err);
-      document.getElementById('rails').innerHTML = '<p style="padding:0 var(--sp-4);color:var(--sem-danger)">Failed to load categories.</p>';
+      document.getElementById('rails').innerHTML = '<p style="padding:0 var(--sp-4);color:var(--live)">Failed to load categories.</p>';
       toast('Could not reach the addon server.', 'danger');
       return;
     }
@@ -453,7 +484,7 @@
       const railId = 'rail-' + catalog.id;
 
       const chip = document.createElement('button');
-      chip.className = 'chip';
+      chip.className = 'tab-pill';
       chip.innerText = label;
       chip.onclick = () => document.getElementById(railId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       quicknav.appendChild(chip);
@@ -465,10 +496,10 @@
         <div class="rail-head">
           <h2>${label}</h2>
           <div class="rail-nav">
-            <button class="btn btn--icon btn--secondary btn--sm" onclick="scrollRail('${railId}',-1)" aria-label="Scroll left">
+            <button class="btn btn--icon btn--outline btn--sm" onclick="scrollRail('${railId}',-1)" aria-label="Scroll left">
               <svg width="16" height="16" style="transform:rotate(180deg)"><use href="#i-chevron"/></svg>
             </button>
-            <button class="btn btn--icon btn--secondary btn--sm" onclick="scrollRail('${railId}',1)" aria-label="Scroll right">
+            <button class="btn btn--icon btn--outline btn--sm" onclick="scrollRail('${railId}',1)" aria-label="Scroll right">
               <svg width="16" height="16"><use href="#i-chevron"/></svg>
             </button>
           </div>
@@ -487,6 +518,7 @@
         const data = await res.json();
         const metas = data.metas || [];
         metas.forEach(m => allMatches.set(m.id, m));
+        updateTicker();
 
         const scroller = document.getElementById(`scroller-${catalog.id}`);
         if (!scroller) return;
@@ -543,6 +575,7 @@
   });
 
   let currentMatchTitle = 'Live Sports';
+  let sourceSheetState = { streams: [], activeLang: 'All' };
 
   async function fetchAndPlay(id, title) {
     currentMatchTitle = title || 'Live Sports';
@@ -629,8 +662,6 @@
     return 'vlc://' + url;
   }
 
-  let sourceSheetState = { streams: [], activeLang: 'All' };
-
   function openSourceSheet(streams) {
     sourceSheetState = {
       streams: streams.map((stream, idx) => ({ stream, meta: parseStreamTitle(stream.title), idx })),
@@ -650,7 +681,7 @@
 
     const options = ['All', ...languages];
     host.innerHTML = options.map(lang => `
-      <button class="chip" aria-pressed="${lang === sourceSheetState.activeLang}"
+      <button class="tab-pill" aria-pressed="${lang === sourceSheetState.activeLang}"
         onclick="setSourceLangFilter('${lang.replace(/'/g, "\\'")}')">${lang}</button>
     `).join('');
   }
@@ -685,11 +716,11 @@
               ${meta.language ? `<div class="chan">${meta.channel}</div>` : ''}
             </div>
             <div class="tags">
-              ${meta.quality ? `<span class="badge badge--outline">${meta.quality}</span>` : ''}
+              ${meta.quality ? `<span class="badge">${meta.quality}</span>` : ''}
               ${meta.viewers ? `<span class="viewers">👥 ${meta.viewers}</span>` : ''}
             </div>
             <div class="actions">
-              ${stream.url ? `<a class="btn btn--icon btn--sm btn--secondary vlc-btn" title="Open in VLC" href="${vlcUrlFor(stream.url)}" onclick="event.stopPropagation(); toast('Opening in VLC…')"><svg width="20" height="20"><use href="#i-vlc"/></svg></a>` : ''}
+              ${stream.url ? `<a class="btn btn--icon btn--sm btn--outline vlc-btn" title="Open in VLC" href="${vlcUrlFor(stream.url)}" onclick="event.stopPropagation(); toast('Opening in VLC…')"><svg width="20" height="20"><use href="#i-vlc"/></svg></a>` : ''}
               <button class="btn btn--icon btn--sm" title="Play" onclick="event.stopPropagation(); playFromSheet(${idx})">
                 <svg width="16" height="16"><use href="#i-play"/></svg>
               </button>
@@ -723,9 +754,7 @@
   }
 
   // The player's own close button: if this match had more than one
-  // source, go back to that list instead of leaving the match entirely -
-  // picking a source, deciding it's bad, and having to reopen the match
-  // from the home feed just to try another one was the actual complaint.
+  // source, go back to that list instead of leaving the match entirely.
   // Only fully exits to the home feed when there was nothing to go back to.
   function handleCloseFromPlayer() {
     if (sourceSheetState.streams.length > 1) {
@@ -736,8 +765,7 @@
   }
 
   // Same "stop the current stream, reopen the picker" action, but reachable
-  // directly from the always-visible switch button during playback -
-  // closing the player first to switch sources wasn't obvious.
+  // directly from the always-visible switch button during playback.
   function backToSourceList() {
     stopPlayback();
     document.getElementById('sheet-backdrop').style.display = 'flex';
@@ -760,8 +788,7 @@
   // Jumps playback to the live edge of the stream's actual seekable range.
   // Works the same way whether hls.js or the browser's native HLS support
   // is driving playback, since both report the true live window through
-  // the standard video.seekable API - no need to reach into hls.js
-  // internals for this.
+  // the standard video.seekable API.
   function jumpToLiveEdge() {
     const video = document.getElementById('video');
     try {
@@ -784,12 +811,12 @@
 
   // Several providers (Streamed.pk, WatchFooty, CDNLiveTV, Streamic,
   // StreamSports99, SportyHunter) mark their streams notWebReady and attach
-  // a Referer/Origin the origin CDN requires - that's metadata for native
-  // clients that can set arbitrary request headers (the official Stremio
-  // app). A browser's fetch/<video> can never override its own Referer, so
-  // handing these URLs straight to hls.js hits a 403 the player just reads
-  // as a stall. The resolver already has a route built exactly for this -
-  // it fetches server-side with the spoofed headers and relays the result.
+  // a Referer/Origin the origin CDN requires - that metadata is for native
+  // clients that can set arbitrary request headers. A browser's
+  // fetch/<video> can never override its own Referer, so handing these
+  // URLs straight to hls.js hits a 403 the player just reads as a stall.
+  // The resolver has a route built exactly for this - it fetches
+  // server-side with the spoofed headers and relays the result.
   function resolveStreamUrl(url, streamObj) {
     const headers = streamObj && streamObj.behaviorHints && streamObj.behaviorHints.proxyHeaders
       ? streamObj.behaviorHints.proxyHeaders.request || {}
@@ -809,8 +836,7 @@
     document.getElementById('loader').style.display = 'none';
 
     // "Web Player" style sources aren't a raw HLS URL we can hand to
-    // hls.js - they're a third-party embed page. Rather than popping a
-    // new tab and abandoning our own player, embed it through the
+    // hls.js - they're a third-party embed page. Embed it through the
     // backend's /watch proxy (the same CORS/referrer-safe wrapper the
     // rest of the app already relies on) right inside this overlay.
     if (streamObj && streamObj.externalUrl) {
@@ -847,10 +873,9 @@
       hls = new Hls({
         // Defaults keep ~3 segments back from the live edge before ever
         // starting playback - at a typical 6-10s segment length for these
-        // scraped sports streams, that's exactly the 18-30s lag reported.
-        // Starting closer to the edge and letting hls.js nudge playback
-        // speed to recover drift (rather than only hard-seeking once far
-        // behind) keeps it close to live without constant stuttering.
+        // scraped sports streams, that's exactly an 18-30s lag. Starting
+        // closer to the edge and letting hls.js nudge playback speed to
+        // recover drift keeps it close to live without stuttering.
         liveSyncDurationCount: 2,
         liveMaxLatencyDurationCount: 5,
         maxLiveSyncPlaybackRate: 1.3,
@@ -868,9 +893,7 @@
 
       // These are scraped, often-flaky CDNs - a dropped segment or a
       // transient network error used to just stall the video forever with
-      // no recovery attempt at all. hls.js can recover most of these on
-      // its own if asked to; only truly fatal, unrecoverable errors should
-      // give up and point the viewer at the switch-source button.
+      // no recovery attempt at all.
       let hlsNetworkRetries = 0;
       hls.on(Hls.Events.ERROR, (event, data) => {
         if (!data.fatal) return;

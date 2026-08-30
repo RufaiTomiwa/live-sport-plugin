@@ -1,0 +1,184 @@
+/* ══════════════════════════════════════════════════════════════════
+   PULSE — a from-scratch design system for a live sports broadcaster.
+   Sport-coded color, broadcast-grade type, sharper geometry than a
+   generic "app" look. Every value here resolves to a token below;
+   nothing in the page markup should hardcode a raw color or font.
+   ══════════════════════════════════════════════════════════════════ */
+:root{
+  /* Surfaces — cool charcoal, not warm-black or purple-tinted */
+  --bg-0:#08090B;
+  --bg-1:#101216;
+  --bg-2:#191C21;
+  --bg-3:#23272E;
+  --line:#23272E;
+  --line-strong:#3A4049;
+
+  /* Text */
+  --text-1:#F3F4F6;
+  --text-2:#9BA3AF;
+  --text-3:#666E7A;
+  --text-inverse:#0A0B0D;
+
+  /* Ink — red is on-air/urgent/primary, blue is navigation/info */
+  --live:#FF2A3F;
+  --live-dim:rgba(255,42,63,.16);
+  --info:#2E86FF;
+  --info-dim:rgba(46,134,255,.16);
+  --gold:#FFB020;
+
+  /* Sport identity — each sport carries its own signature hue,
+     used for the category tag, the card's edge accent, and the
+     generated cover art. This is the system's signature idea. */
+  --sp-football:#22C773;
+  --sp-basketball:#FF8A1E;
+  --sp-motorsport:#FF2A3F;
+  --sp-cricket:#2FE0A6;
+  --sp-tennis:#C9F13D;
+  --sp-mma:#E0173D;
+  --sp-hockey:#3FC1FF;
+  --sp-baseball:#D13B4E;
+  --sp-golf:#1F9E56;
+  --sp-rugby:#B23A4A;
+  --sp-american_football:#D69A2D;
+  --sp-darts:#8B5CF6;
+  --sp-other:#2E86FF;
+
+  /* Type */
+  --font-display:'Anton',system-ui,sans-serif;
+  --font-head:'Barlow Condensed',system-ui,sans-serif;
+  --font-ui:'Inter',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,monospace;
+
+  --size-xs:.75rem; --size-sm:.875rem; --size-md:1rem; --size-lg:1.125rem;
+  --size-xl:1.375rem; --size-2xl:1.75rem; --size-3xl:2.5rem; --size-4xl:3.5rem;
+
+  /* Space — 4px base */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px; --sp-6:32px; --sp-7:48px; --sp-8:64px;
+
+  /* Sharper, more technical geometry than a rounded "app" look */
+  --r-xs:3px; --r-sm:5px; --r-md:8px; --r-lg:12px; --r-full:999px;
+
+  --ease:cubic-bezier(.2,.8,.2,1);
+  --fast:120ms; --base:220ms;
+  --tap:44px;
+  --focus:2px solid var(--info);
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+body{margin:0;background:var(--bg-0);color:var(--text-1);font-family:var(--font-ui);
+  font-size:var(--size-md);line-height:1.5;-webkit-font-smoothing:antialiased}
+:focus-visible{outline:var(--focus);outline-offset:2px;border-radius:var(--r-xs)}
+img{max-width:100%;display:block}
+button{font:inherit;color:inherit}
+a{color:inherit}
+
+/* ─── Type ─── */
+.t-display{font-family:var(--font-display);font-weight:400;letter-spacing:.01em;line-height:.95;text-transform:uppercase}
+.t-head{font-family:var(--font-head);font-weight:700;letter-spacing:.01em;line-height:1.05;text-transform:uppercase}
+.t-mono{font-family:var(--font-mono)}
+.t-secondary{color:var(--text-2)}
+.t-label{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-2)}
+
+/* ─── Buttons ─── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--sp-2);
+  font-family:var(--font-ui);font-weight:600;font-size:var(--size-sm);
+  min-height:var(--tap);padding:0 var(--sp-5);border:1px solid transparent;border-radius:var(--r-sm);
+  background:var(--live);color:#fff;cursor:pointer;text-decoration:none;white-space:nowrap;
+  transition:transform var(--fast) var(--ease),opacity var(--fast),background var(--fast),border-color var(--fast)}
+.btn:hover:not(:disabled){opacity:.88}
+.btn:active:not(:disabled){transform:scale(.97)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn--info{background:var(--info)}
+.btn--outline{background:transparent;color:var(--text-1);border-color:var(--line-strong)}
+.btn--outline:hover:not(:disabled){background:var(--bg-2);opacity:1}
+.btn--ghost{background:transparent;color:var(--text-2);border-color:transparent;padding:0 var(--sp-3)}
+.btn--ghost:hover:not(:disabled){color:var(--text-1);background:var(--bg-2);opacity:1}
+.btn--sm{min-height:34px;font-size:var(--size-xs);padding:0 var(--sp-4)}
+.btn--lg{min-height:52px;font-size:var(--size-md);padding:0 var(--sp-6)}
+.btn--icon{padding:0;width:var(--tap);min-height:var(--tap);border-radius:var(--r-sm)}
+.btn--block{width:100%}
+
+/* ─── Forms ─── */
+.field{display:flex;flex-direction:column;gap:var(--sp-2)}
+.label{font-size:var(--size-sm);font-weight:600}
+.hint{font-size:var(--size-xs);color:var(--text-2)}
+.input,.select{width:100%;min-height:var(--tap);padding:var(--sp-3) var(--sp-4);
+  background:var(--bg-2);color:var(--text-1);border:1px solid var(--line-strong);border-radius:var(--r-sm);
+  font-family:var(--font-ui);font-size:var(--size-md);transition:border-color var(--fast)}
+.input::placeholder{color:var(--text-3)}
+.input:hover,.select:hover{border-color:var(--text-3)}
+.input:focus,.select:focus{outline:none;border-color:var(--info)}
+.select{cursor:pointer}
+.search{position:relative}
+.search .input{padding-left:44px}
+.search svg{position:absolute;left:var(--sp-4);top:50%;transform:translateY(-50%);color:var(--text-2);pointer-events:none}
+
+.check{display:inline-flex;align-items:center;gap:var(--sp-3);cursor:pointer;
+  min-height:var(--tap);padding:var(--sp-2) var(--sp-3);border-radius:var(--r-sm);
+  background:var(--bg-1);border:1px solid var(--line);transition:all var(--fast)}
+.check:hover{border-color:var(--line-strong)}
+.check.active{border-color:var(--live);background:var(--live-dim)}
+.check input{position:absolute;opacity:0;width:0;height:0}
+.check .box{width:18px;height:18px;border-radius:var(--r-xs);flex:none;border:2px solid var(--line-strong);
+  display:grid;place-items:center;transition:all var(--fast)}
+.check .box svg{opacity:0;color:#fff;transition:opacity var(--fast)}
+.check input:checked + .box{background:var(--live);border-color:var(--live)}
+.check input:checked + .box svg{opacity:1}
+.check input:focus-visible + .box{outline:var(--focus);outline-offset:2px}
+
+/* ─── Badge & tab pill ─── */
+.badge{display:inline-flex;align-items:center;gap:var(--sp-1);font-family:var(--font-mono);
+  font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:4px var(--sp-2);
+  border-radius:var(--r-xs);background:var(--bg-3);color:var(--text-2)}
+.badge--live{background:var(--live);color:#fff;animation:pulseLive 1.8s infinite}
+@keyframes pulseLive{0%{box-shadow:0 0 0 0 rgba(255,42,63,.6)}70%{box-shadow:0 0 0 7px rgba(255,42,63,0)}100%{box-shadow:0 0 0 0 rgba(255,42,63,0)}}
+.badge--glass{background:rgba(8,9,11,.65);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.14);color:var(--text-1)}
+
+.tab-pill{display:inline-flex;align-items:center;gap:var(--sp-2);min-height:var(--tap);
+  padding:0 var(--sp-4);border-radius:var(--r-sm);border:1px solid var(--line-strong);background:var(--bg-2);
+  color:var(--text-2);font-family:var(--font-head);font-weight:700;font-size:var(--size-sm);
+  letter-spacing:.02em;text-transform:uppercase;cursor:pointer;white-space:nowrap;transition:all var(--fast)}
+.tab-pill:hover{color:var(--text-1);border-color:var(--text-3)}
+.tab-pill[aria-pressed="true"]{background:var(--live);border-color:var(--live);color:#fff}
+
+.skeleton{background:linear-gradient(90deg,var(--bg-2) 25%,var(--bg-3) 50%,var(--bg-2) 75%);
+  background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:var(--r-xs)}
+@keyframes shimmer{to{background-position:-200% 0}}
+
+/* ─── Cards ─── */
+.card{background:var(--bg-1);border:1px solid var(--line);border-radius:var(--r-md);
+  transition:border-color var(--fast),transform var(--fast)}
+.card--interactive{cursor:pointer}
+.card--interactive:hover{border-color:var(--line-strong);transform:translateY(-3px)}
+
+/* ─── App bar ─── */
+.appbar{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);
+  padding:var(--sp-3) var(--sp-5);background:rgba(16,18,22,.9);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);position:sticky;top:0;z-index:50}
+.appbar .brand{display:flex;align-items:center;gap:var(--sp-2);font-family:var(--font-display);
+  font-size:var(--size-lg);letter-spacing:.02em}
+
+/* ─── Feedback ─── */
+#toastHost{position:fixed;bottom:var(--sp-5);left:50%;transform:translateX(-50%);z-index:200;
+  display:flex;flex-direction:column;gap:var(--sp-2);align-items:center;width:100%;padding:0 var(--sp-4);pointer-events:none}
+.toast{display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3) var(--sp-4);background:var(--bg-3);
+  border:1px solid var(--line-strong);border-radius:var(--r-md);box-shadow:0 8px 30px rgba(0,0,0,.5);
+  font-size:var(--size-sm);max-width:420px;pointer-events:auto;animation:toastIn var(--base)}
+.toast--danger{border-left:3px solid var(--live)}
+.toast--ok{border-left:3px solid var(--sp-football)}
+@keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+.empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:var(--sp-3);
+  padding:var(--sp-8) var(--sp-4);border:1px dashed var(--line-strong);border-radius:var(--r-lg);grid-column:1/-1}
+.empty .title{font-family:var(--font-head);font-weight:700;font-size:var(--size-xl);text-transform:uppercase}
+.empty .sub{color:var(--text-2);font-size:var(--size-sm);max-width:44ch}
+
+.sheet-backdrop{position:fixed;inset:0;background:rgba(4,4,5,.75);backdrop-filter:blur(3px);z-index:150;
+  display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg-1);border:1px solid var(--line-strong);border-radius:var(--r-lg) var(--r-lg) 0 0;
+  padding:var(--sp-5) var(--sp-4) var(--sp-6);box-shadow:0 -8px 40px rgba(0,0,0,.5);max-width:520px;width:100%;
+  animation:sheetIn var(--base)}
+@keyframes sheetIn{from{transform:translateY(24px);opacity:.6}to{transform:translateY(0);opacity:1}}
+.sheet .grabber{width:38px;height:4px;border-radius:var(--r-full);background:var(--line-strong);margin:0 auto var(--sp-4)}
