@@ -146,11 +146,12 @@
     .source-row{display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3);border-radius:var(--r-sm);
       background:var(--bg-2);border:1px solid transparent;cursor:pointer;transition:all var(--fast);margin-bottom:var(--sp-2)}
     .source-row:hover{border-color:var(--line-strong)}
+    .source-row--recommended{border-color:var(--live);background:var(--live-dim)}
     .source-row .icon{width:38px;height:38px;border-radius:var(--r-xs);background:rgba(255,255,255,.05);
       display:grid;place-items:center;flex:none;font-size:18px}
     .source-row .meta{flex:1;min-width:0}
-    .source-row .lang{font-family:var(--font-head);font-weight:700;font-size:var(--size-md);text-transform:uppercase;
-      white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .source-row .lang{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;
+      font-family:var(--font-head);font-weight:700;font-size:var(--size-md);text-transform:uppercase}
     .source-row .chan{font-size:var(--size-xs);color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
     .source-row .tags{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none}
     .source-row .viewers{font-family:var(--font-mono);font-size:11px;color:var(--text-2);display:flex;align-items:center;gap:3px;white-space:nowrap}
@@ -713,11 +714,17 @@
     groups.forEach((items, source) => {
       if (showGroupLabels) html += `<div class="source-group-label">${source}</div>`;
       items.forEach(({ stream, meta, idx }) => {
+        // The backend already sorts streams by its own quality/reliability
+        // score before returning them (direct streams first, then score
+        // descending) - idx 0 in the original order is its own top pick,
+        // so surface that instead of leaving the user to guess between a
+        // dozen near-identical options.
+        const isRecommended = idx === 0;
         html += `
-          <div class="source-row" onclick="playFromSheet(${idx})">
+          <div class="source-row${isRecommended ? ' source-row--recommended' : ''}" onclick="playFromSheet(${idx})">
             <span class="icon">${meta.icon}</span>
             <div class="meta">
-              <div class="lang">${meta.language || meta.channel}</div>
+              <div class="lang">${meta.language || meta.channel} ${isRecommended ? '<span class="badge" style="background:var(--live);color:#fff">Recommended</span>' : ''}</div>
               ${meta.language ? `<div class="chan">${meta.channel}</div>` : ''}
             </div>
             <div class="tags">
@@ -790,19 +797,34 @@
     iframe.style.display = 'none';
   }
 
-  // Jumps playback to the live edge of the stream's actual seekable range.
-  // Works the same way whether hls.js or the browser's native HLS support
-  // is driving playback, since both report the true live window through
-  // the standard video.seekable API.
+  // Jumps playback to the live edge. Seeking to the raw bleeding edge
+  // (video.seekable's end) was the bug: that position often has no
+  // fragment downloaded yet, so the seek immediately stalls waiting on
+  // one - exactly the "waits until it reaches a timestamp before it
+  // preloads" symptom. hls.js already tracks and keeps buffer flowing
+  // around hls.liveSyncPosition (per liveSyncDurationCount) as part of
+  // normally following the live edge, so jumping there instead lands
+  // somewhere data is already present or already mid-fetch. startLoad()
+  // also re-hints the loader at that position so it doesn't wait for the
+  // next natural tick to catch up. Native Safari HLS has no equivalent
+  // API, so it falls back to backing off a few seconds from the seekable
+  // end instead of hls.js's precise tracked position.
   function jumpToLiveEdge() {
     const video = document.getElementById('video');
     try {
-      if (video.seekable && video.seekable.length > 0) {
-        const edge = video.seekable.end(video.seekable.length - 1);
-        video.currentTime = Math.max(0, edge - 0.5);
-        video.play().catch(() => {});
-        toast('Jumped to live edge.');
+      let target = null;
+      if (hls && typeof hls.liveSyncPosition === 'number' && !isNaN(hls.liveSyncPosition)) {
+        target = hls.liveSyncPosition;
+      } else if (video.seekable && video.seekable.length > 0) {
+        target = video.seekable.end(video.seekable.length - 1) - 4;
       }
+      if (target === null) return;
+
+      target = Math.max(0, target);
+      if (hls) hls.startLoad(target);
+      video.currentTime = target;
+      video.play().catch(() => {});
+      toast('Jumped to live edge.');
     } catch (e) {
       console.warn('Could not jump to live edge', e);
     }
